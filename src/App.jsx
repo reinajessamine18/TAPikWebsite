@@ -7,6 +7,7 @@ import Checkout from './pages/Checkout'
 import Orders from './pages/Orders'
 import Admin from './pages/Admin'
 import { loadCart, saveCart } from './lib/storage'
+import bg from './assets/TAPikbg.png'
 
 export default function App() {
   const [page, setPage] = useState('home')
@@ -44,12 +45,18 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-blue-50">
-      <Navbar page={page} setPage={setPage} cartCount={cart.reduce((s, i) => s + i.qty, 0)} />
-      <main>{renderPage()}</main>
-      <footer className="bg-blue-900 text-blue-200 text-center py-6 text-sm">
-        © {new Date().getFullYear()} TAPik Company • Customized anik-anik acrylic keychains with NFC • Demo for group project
-      </footer>
+    <div
+      className="min-h-screen relative"
+      style={{ backgroundColor: '#4f94b2', backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'top center', backgroundAttachment: 'fixed' }}
+    >
+      <div className="absolute inset-0 bg-blue-900/40 -z-0 pointer-events-none" />
+      <div className="relative z-10">
+        <Navbar page={page} setPage={setPage} cartCount={cart.reduce((s, i) => s + i.qty, 0)} />
+        <main>{renderPage()}</main>
+        <footer className="bg-blue-900/80 text-blue-200 text-center py-6 text-sm">
+          (c) {new Date().getFullYear()} TAPik Company - Customized anik-anik acrylic keychains with NFC - Demo for group project
+        </footer>
+      </div>
     </div>
   )
 }

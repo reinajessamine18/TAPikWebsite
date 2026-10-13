@@ -2,37 +2,32 @@
 // Prices are in Philippine Pesos (PHP).
 
 export const SHAPES = [
-  { id: 'round', label: 'Round', price: 20 },
+  { id: 'rectangle', label: 'Rectangle', price: 20 },
+  { id: 'curved', label: 'Curved Rectangle', price: 20 },
   { id: 'square', label: 'Square', price: 20 },
-  { id: 'heart', label: 'Heart', price: 20 },
   { id: 'octagonal', label: 'Octagonal', price: 20 },
+  { id: 'heart', label: 'Heart', price: 20 },
 ]
 
 export const CHAINS = [
-  { id: 'split', label: 'Split ring only', price: 0 },
+  { id: 'split', label: 'Split ring only (included)', price: 0 },
   { id: 'gold', label: 'Gold ring + lobster clasp', price: 12 },
   { id: 'silver', label: 'Silver ring + lobster clasp', price: 12 },
-  { id: 'beaded', label: 'Beaded strap', price: 12 },
-]
-
-export const PRINTS = [
-  { id: 'single', label: 'Single-sided print', price: 11 },
-  { id: 'double', label: 'Double-sided print', price: 22 },
 ]
 
 export const NFC_PRICE = 18
 export const PACKAGING_PRICE = 7
 export const ASSEMBLY_PRICE = 10
+export const PRINT_PRICE = 11 // fixed/double-sided print allowance included in standard PHP 78
 
-export function computePrice({ shape = 'round', chain = 'gold', print = 'single', nfc = true } = {}) {
-  let total = 0
+export function computePrice({ shape = 'rectangle', chain = 'gold' } = {}) {
   const selectedShape = SHAPES.find((s) => s.id === shape) || SHAPES[0]
   const selectedChain = CHAINS.find((c) => c.id === chain) || CHAINS[0]
-  const selectedPrint = PRINTS.find((p) => p.id === print) || PRINTS[0]
+  let total = 0
   total += selectedShape.price
   total += selectedChain.price
-  total += selectedPrint.price
-  if (nfc) total += NFC_PRICE
+  total += NFC_PRICE
+  total += PRINT_PRICE
   total += PACKAGING_PRICE
   total += ASSEMBLY_PRICE
   return total

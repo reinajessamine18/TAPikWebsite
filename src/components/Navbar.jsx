@@ -1,5 +1,5 @@
 import React from 'react'
-import logo from '../assets/tapikLogo.png'
+import logo from '../assets/tapiLogo.png'
 
 const PAGES = [
   { id: 'home', label: 'Home' },
@@ -10,15 +10,25 @@ const PAGES = [
 
 export default function Navbar({ page, setPage, cartCount }) {
   return (
-    <header className="sticky top-0 z-40 bg-blue-900/90 backdrop-blur border-b border-yellow-400/30">
-      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+    <header className="sticky top-0 z-40 bg-blue-900/85 backdrop-blur border-b border-yellow-400/30">
+      <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
         <button onClick={() => setPage('home')} className="flex items-center gap-2">
           <img src={logo} alt="TAPik logo" className="h-10 w-auto" />
           <div className="hidden sm:block">
             <div className="text-yellow-400 font-black tracking-widest text-lg leading-none">TAPik</div>
-            <div className="text-xs text-blue-200">anik-anik + NFC</div>
+            <div className="text-xs text-blue-200">Filipino anik-anik + NFC</div>
           </div>
         </button>
+
+        {/* motto with hyperlinks */}
+        <div className="hidden md:flex items-center gap-3 text-xs text-blue-100">
+          <span className="italic">Tap your anik-anik into digital reality</span>
+          <a href="https://instagram.com/tapik.officia" target="_blank" rel="noreferrer" className="hover:text-yellow-400">Instagram</a>
+          <a href="https://facebook.com/TAPikCompany" target="_blank" rel="noreferrer" className="hover:text-yellow-400">Facebook</a>
+          <a href="mailto:tapikco@gmail.com" className="hover:text-yellow-400">Email</a>
+          <a href="tel:+63" className="hover:text-yellow-400">Contact</a>
+        </div>
+
         <nav className="flex items-center gap-1 sm:gap-2">
           {PAGES.map((p) => (
             <button

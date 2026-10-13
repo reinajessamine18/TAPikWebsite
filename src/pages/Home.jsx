@@ -1,16 +1,11 @@
 import React from 'react'
 import KeychainPreview from '../components/KeychainPreview'
-import bg from '../assets/TAPikbgBIG.png'
 
 export default function Home({ setPage }) {
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-900 via-blue-800 to-blue-900 text-white">
-      <section
-        className="relative max-w-6xl mx-auto px-4 py-16 grid md:grid-cols-2 gap-10 items-center rounded-b-3xl"
-        style={{ backgroundImage: `url(${bg})`, backgroundSize: 'cover', backgroundPosition: 'center' }}
-      >
-        <div className="absolute inset-0 bg-blue-900/70 rounded-b-3xl" />
-        <div className="relative z-10">
+    <div className="text-white">
+      <section className="max-w-6xl mx-auto px-4 py-16 grid md:grid-cols-2 gap-10 items-center">
+        <div>
           <p className="text-yellow-400 font-bold tracking-widest text-sm mb-2">TAPik - Filipino anik-anik + NFC</p>
           <h1 className="text-4xl md:text-5xl font-black leading-tight">
             Make your own <span className="text-yellow-400">anik-anik</span>, now with a digital tap.
@@ -42,21 +37,21 @@ export default function Home({ setPage }) {
             </div>
           </div>
         </div>
-        <div className="relative z-10 flex justify-center">
+        <div className="flex justify-center">
           <KeychainPreview shape="round" chain="gold" nfc={true} />
         </div>
       </section>
 
-      <section className="bg-white text-blue-900">
+      <section className="bg-white/10 backdrop-blur text-white">
         <div className="max-w-6xl mx-auto px-4 py-14 grid md:grid-cols-3 gap-6">
           {[
             { title: 'Live preview', text: 'Upload your image and instantly see how it looks on the finished keychain, just like custom shirt printing sites.' },
             { title: 'Component pricing', text: 'Pick only what you need. Price updates automatically as you choose shape, clasp, print, and NFC.' },
             { title: 'Simulated J&T delivery', text: 'Enter your delivery address and see an estimated shipping fee before checkout (demo rates).' },
           ].map((f) => (
-            <div key={f.title} className="rounded-2xl border border-blue-100 p-6 shadow-sm">
-              <h3 className="font-bold text-xl mb-2">{f.title}</h3>
-              <p className="text-blue-700">{f.text}</p>
+            <div key={f.title} className="rounded-2xl border border-white/20 p-6 bg-white/5">
+              <h3 className="font-bold text-xl mb-2 text-yellow-400">{f.title}</h3>
+              <p className="text-blue-100">{f.text}</p>
             </div>
           ))}
         </div>
