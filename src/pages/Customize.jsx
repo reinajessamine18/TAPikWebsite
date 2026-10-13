@@ -6,6 +6,8 @@ import leftArrow from '../assets/leftArrow.png'
 import rightArrow from '../assets/rightArrow.png'
 import uploadDesign from '../assets/uploadDesign.png'
 import nfcLink from '../assets/nfcLink.png'
+import addButton from '../assets/addbutton.png'
+import minusButton from '../assets/minusbutton.png'
 
 export default function Customize({ onAddToCart }) {
   const [image, setImage] = useState(null)
@@ -31,6 +33,13 @@ export default function Customize({ onAddToCart }) {
     setShape(SHAPES[next].id)
   }
 
+  const cycleChain = (dir) => {
+    const idx = CHAINS.findIndex((c) => c.id === chain)
+    const next = (idx + dir + CHAINS.length) % CHAINS.length
+    setChain(CHAINS[next].id)
+  }
+
+
   const handleAdd = () => {
     const item = {
       id: newId('item'),
@@ -50,22 +59,85 @@ export default function Customize({ onAddToCart }) {
     <div className="min-h-screen text-white">
       <div className="max-w-6xl mx-auto px-4 py-10">
         <h2 className="text-3xl font-black mb-6 text-yellow-400">Customize your TAPik keychain</h2>
-        <div className="grid md:grid-cols-2 gap-10">
-          <div className="flex items-center justify-center gap-4">
-            <button onClick={() => cycleShape(-1)} className="p-2 rounded-full bg-white/10 hover:bg-white/20">
-              <img src={leftArrow} alt="Previous shape" className="w-12 h-12 object-contain" />
-            </button>
-            <div className="bg-white/10 rounded-3xl p-6 flex flex-col items-center backdrop-blur border border-white/20">
-              <KeychainPreview shape={shape} chain={chain} image={image} />
-              <p className="mt-3 text-sm text-blue-100 text-center">
-                {image ? 'Your design appears inside the acrylic keychain.' : 'Upload an image to preview.'}
-              </p>
-              <div className="mt-2 text-yellow-400 font-bold">{selectedShape.label}</div>
+          <div className="grid md:grid-cols-2 gap-10">
+        <div className="tapik-customize-preview">
+          {/* TOP: CLASP / CHAIN VARIATIONS */}
+          <div className="tapik-variation-controls">
+            <span className="tapik-variation-label">
+              CLASP / CHAIN
+            </span>
+
+            <div className="tapik-variation-arrows">
+              <button
+                type="button"
+                onClick={() => cycleChain(-1)}
+                className="tapik-variation-arrow"
+                aria-label="Previous clasp"
+              >
+                <img src={leftArrow} alt="" />
+              </button>
+
+              <span className="tapik-variation-current">
+                {CHAINS.find((c) => c.id === chain)?.label}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => cycleChain(1)}
+                className="tapik-variation-arrow"
+                aria-label="Next clasp"
+              >
+                <img src={rightArrow} alt="" />
+              </button>
             </div>
-            <button onClick={() => cycleShape(1)} className="p-2 rounded-full bg-white/10 hover:bg-white/20">
-              <img src={rightArrow} alt="Next shape" className="w-12 h-12 object-contain" />
-            </button>
           </div>
+
+          {/* CENTER: KEYCHAIN PREVIEW */}
+          <div className="tapik-keychain-display">
+            <KeychainPreview
+              shape={shape}
+              chain={chain}
+              image={image}
+            />
+
+            <p className="tapik-preview-hint">
+              {image
+                ? 'Your design appears inside the acrylic keychain.'
+                : 'Upload an image to preview your design.'}
+            </p>
+          </div>
+
+          {/* BOTTOM: ACRYLIC SHAPE VARIATIONS */}
+          <div className="tapik-variation-controls">
+            <span className="tapik-variation-label">
+              ACRYLIC SHAPE
+            </span>
+
+            <div className="tapik-variation-arrows">
+              <button
+                type="button"
+                onClick={() => cycleShape(-1)}
+                className="tapik-variation-arrow"
+                aria-label="Previous acrylic shape"
+              >
+                <img src={leftArrow} alt="" />
+              </button>
+
+              <span className="tapik-variation-current">
+                {selectedShape.label}
+              </span>
+
+              <button
+                type="button"
+                onClick={() => cycleShape(1)}
+                className="tapik-variation-arrow"
+                aria-label="Next acrylic shape"
+              >
+                <img src={rightArrow} alt="" />
+              </button>
+            </div>
+          </div>
+        </div>
 
           <div className="space-y-5">
             <div className="bg-white/10 rounded-2xl p-5 backdrop-blur border border-white/20">
@@ -129,40 +201,85 @@ export default function Customize({ onAddToCart }) {
               />
             </div>
 
-            <div className="bg-white/10 rounded-2xl p-5 backdrop-blur border border-white/20">
-              <div className="flex items-center justify-between mb-3">
-                <span className="font-bold">Quantity</span>
-                <input
-                  type="number"
-                  min={1}
-                  value={qty}
-                  onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
-                  className="border border-white/20 bg-white/5 rounded-xl p-2 w-20 text-center text-white"
-                />
-              </div>
-              <div className="space-y-1 text-sm text-blue-100">
-                <div className="flex justify-between"><span>Acrylic ({shape})</span><span>PHP {selectedShape.price}</span></div>
-                <div className="flex justify-between"><span>Chain / clasp</span><span>PHP {CHAINS.find(c=>c.id===chain).price}</span></div>
-                <div className="flex justify-between"><span>NFC sticker (embedded)</span><span>PHP {NFC_PRICE}</span></div>
-                <div className="flex justify-between"><span>Double-sided print (included)</span><span>PHP {PRINT_PRICE}</span></div>
-                <div className="flex justify-between"><span>Packaging</span><span>PHP {PACKAGING_PRICE}</span></div>
-                <div className="flex justify-between"><span>Assembly + NFC setup</span><span>PHP {ASSEMBLY_PRICE}</span></div>
-              </div>
-              <div className="flex justify-between items-center mt-3 pt-3 border-t border-white/20">
-                <span className="font-bold text-lg">Price per unit</span>
-                <span className="font-black text-2xl text-yellow-400">PHP {price}</span>
-              </div>
-              <div className="flex justify-between text-sm text-blue-200">
-                <span>Total for {qty}</span>
-                <span>PHP {price * qty}</span>
-              </div>
-              <button
-                onClick={handleAdd}
-                className="mt-4 w-full bg-yellow-400 text-blue-900 font-bold py-3 rounded-full hover:bg-yellow-300"
-              >
-                Add to cart
-              </button>
-            </div>
+<div className="tapik-customize-summary">
+  <div className="tapik-customize-quantity">
+    <span className="tapik-customize-label">Quantity</span>
+
+    <div className="tapik-customize-quantity-control">
+      <button
+        type="button"
+        onClick={() => setQty((current) => Math.max(1, current - 1))}
+        disabled={qty <= 1}
+        aria-label="Decrease quantity"
+        className="tapik-customize-qty-button"
+      >
+        <img src={minusButton} alt="" />
+      </button>
+
+      <span className="tapik-customize-qty-value">{qty}</span>
+
+      <button
+        type="button"
+        onClick={() => setQty((current) => current + 1)}
+        aria-label="Increase quantity"
+        className="tapik-customize-qty-button"
+      >
+        <img src={addButton} alt="" />
+      </button>
+    </div>
+  </div>
+
+  <div className="tapik-customize-breakdown">
+    <div>
+      <span>Acrylic ({selectedShape.label})</span>
+      <span>PHP {selectedShape.price}</span>
+    </div>
+
+    <div>
+      <span>Chain / clasp</span>
+      <span>PHP {CHAINS.find((c) => c.id === chain)?.price ?? 0}</span>
+    </div>
+
+    <div>
+      <span>NFC sticker (embedded)</span>
+      <span>PHP {NFC_PRICE}</span>
+    </div>
+
+    <div>
+      <span>Double-sided print</span>
+      <span>PHP {PRINT_PRICE}</span>
+    </div>
+
+    <div>
+      <span>Packaging</span>
+      <span>PHP {PACKAGING_PRICE}</span>
+    </div>
+
+    <div>
+      <span>Assembly + NFC setup</span>
+      <span>PHP {ASSEMBLY_PRICE}</span>
+    </div>
+  </div>
+
+  <div className="tapik-customize-unit-price">
+    <span>Price per unit</span>
+    <strong>PHP {price.toFixed(2)}</strong>
+  </div>
+
+  <div className="tapik-customize-total">
+    <span>Total ({qty} {qty === 1 ? 'item' : 'items'})</span>
+    <strong>PHP {(price * qty).toFixed(2)}</strong>
+  </div>
+
+  <button
+    type="button"
+    onClick={handleAdd}
+    className="tapik-customize-add-button"
+  >
+    Add to cart
+  </button>
+</div>
+
           </div>
         </div>
       </div>
