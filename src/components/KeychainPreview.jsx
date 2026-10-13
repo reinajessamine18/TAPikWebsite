@@ -1,5 +1,5 @@
 import React from 'react'
-import logo from '../assets/tapiLogo.png'
+import logo from '../assets/TAPik-logo.png'
 
 // Real-life keychain look: uses the uploaded TAPik logo/keychain image as base,
 // then overlays the customer's design on the acrylic insert area.
