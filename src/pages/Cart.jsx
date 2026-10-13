@@ -1,71 +1,238 @@
+
 import React from 'react'
 import KeychainPreview from '../components/KeychainPreview'
 import { estimateShipping } from '../lib/pricing'
 import addButton from '../assets/addbutton.png'
 import minusButton from '../assets/minusbutton.png'
 
+const money = (amount) =>
+  `₱${(Number(amount) || 0).toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
+
 export default function Cart({ cart, setCart, setPage }) {
   const updateQty = (id, delta) => {
-    setCart(cart.map((i) => (i.id === id ? { ...i, qty: Math.max(1, i.qty + delta) } : i)))
+    setCart((previous) =>
+      previous.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              qty: Math.max(1, (Number(item.qty) || 1) + delta),
+            }
+          : item
+      )
+    )
   }
-  const remove = (id) => setCart(cart.filter((i) => i.id !== id))
-  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
-  const weight = cart.reduce((s, i) => s + (i.weightGrams || 50) * i.qty, 0)
+
+  const remove = (id) => {
+    setCart((previous) => previous.filter((item) => item.id !== id))
+  }
+
+  const subtotal = cart.reduce(
+    (sum, item) =>
+      sum + (Number(item.price) || 0) * (Number(item.qty) || 1),
+    0
+  )
+
+  const weight = cart.reduce(
+    (sum, item) =>
+      sum + (Number(item.weightGrams) || 50) * (Number(item.qty) || 1),
+    0
+  )
+
   const shipping = cart.length ? estimateShipping(weight) : 0
   const total = subtotal + shipping
+  const totalItems = cart.reduce(
+    (sum, item) => sum + (Number(item.qty) || 1),
+    0
+  )
 
-  if (!cart.length) {
+  if (cart.length === 0) {
     return (
-      <div className="min-h-screen text-white flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-2">Your cart is empty</h2>
-          <p className="text-blue-100 mb-4">Start designing your anik-anik keychain.</p>
-          <button onClick={() => setPage('customize')} className="bg-yellow-400 text-blue-900 font-bold px-6 py-3 rounded-full">
-            Customize now
+      <section className="tapik-cart-page">
+        <div className="tapik-empty-cart">
+          <div className="tapik-empty-icon">♡</div>
+          <h1>Your Cart Is Empty</h1>
+          <p>
+            Your next favorite anik-anik starts with a custom TAPik keychain.
+          </p>
+          <button
+            type="button"
+            className="tapik-primary-button"
+            onClick={() => setPage('customize')}
+          >
+            Start Customizing
           </button>
         </div>
-      </div>
+      </section>
     )
   }
 
   return (
-    <div className="min-h-screen text-white">
-      <div className="max-w-5xl mx-auto px-4 py-10 grid md:grid-cols-3 gap-6">
-        <div className="md:col-span-2 space-y-4">
-          <h2 className="text-2xl font-bold">Your cart</h2>
-          {cart.map((i) => (
-            <div key={i.id} className="bg-white/10 rounded-2xl shadow p-4 flex gap-4 items-center backdrop-blur border border-white/20">
-              <div className="w-28"><KeychainPreview shape={i.shape} chain={i.chain} image={i.image} /></div>
-              <div className="flex-1">
-                <div className="font-bold">Custom TAPik keychain</div>
-                <div className="text-sm text-blue-100">{i.shape} - {i.chain} - NFC keychain</div>
-                <div className="mt-2 flex items-center gap-3">
-                  <button onClick={() => updateQty(i.id, -1)} className="p-1">
-                    <img src={minusButton} alt="Decrease" className="w-7 h-7 object-contain" />
-                  </button>
-                  <span className="font-bold text-lg">{i.qty}</span>
-                  <button onClick={() => updateQty(i.id, 1)} className="p-1">
-                    <img src={addButton} alt="Increase" className="w-7 h-7 object-contain" />
-                  </button>
-                  <button onClick={() => remove(i.id)} className="ml-auto text-red-300 text-sm hover:underline">Remove</button>
-                </div>
-              </div>
-              <div className="font-bold text-lg">PHP {i.price * i.qty}</div>
-            </div>
-          ))}
-        </div>
-        <div className="bg-white/10 rounded-2xl shadow p-6 h-fit backdrop-blur border border-white/20">
-          <h3 className="font-bold text-lg mb-3">Summary</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between"><span>Subtotal</span><span>PHP {subtotal}</span></div>
-            <div className="flex justify-between"><span>Simulated J&T shipping ({(weight/1000).toFixed(2)} kg)</span><span>PHP {shipping}</span></div>
-            <div className="flex justify-between font-bold text-lg pt-2 border-t border-white/20"><span>Total</span><span>PHP {total}</span></div>
+    <section className="tapik-cart-page">
+      <div className="tapik-cart-container">
+        <div className="tapik-cart-heading">
+          <div>
+            <p className="tapik-eyebrow">YOUR TAPik ORDER</p>
+            <h1>Shopping Cart</h1>
+            <p className="tapik-cart-subtitle">
+              Review your personalized keychains before checkout.
+            </p>
           </div>
-          <button onClick={() => setPage('checkout')} className="mt-4 w-full bg-yellow-400 text-blue-900 font-bold py-3 rounded-full">
-            Proceed to checkout
-          </button>
+
+          <span className="tapik-item-count">
+            {totalItems} {totalItems === 1 ? 'item' : 'items'}
+          </span>
+        </div>
+
+        <div className="tapik-cart-layout">
+          <div className="tapik-cart-items">
+            <div className="tapik-panel-heading">
+              <h2>Your Items</h2>
+              <span>{cart.length} product{cart.length !== 1 ? 's' : ''}</span>
+            </div>
+
+            {cart.map((item) => (
+              <article className="tapik-cart-item" key={item.id}>
+                <div className="tapik-cart-product-image">
+                  <KeychainPreview
+                    shape={item.shape}
+                    chain={item.chain}
+                    image={item.image}
+                  />
+                </div>
+
+                <div className="tapik-cart-product-details">
+                  <h3>Custom TAPik Keychain</h3>
+
+                  <p className="tapik-product-description">
+                    Personalized acrylic keychain with NFC customization.
+                  </p>
+
+                  <div className="tapik-product-tags">
+                    <span>{item.shape || 'Rectangle'}</span>
+                    <span>{item.chain || 'Gold'} finish</span>
+                    <span>NFC</span>
+                  </div>
+
+                  <div className="tapik-quantity-row">
+                    <span className="tapik-quantity-label">Quantity</span>
+
+                    <div className="tapik-quantity-control">
+                      <button
+                        type="button"
+                        onClick={() => updateQty(item.id, -1)}
+                        disabled={(Number(item.qty) || 1) <= 1}
+                        aria-label="Decrease quantity"
+                        className="tapik-quantity-button"
+                      >
+                        <img src={minusButton} alt="" />
+                      </button>
+
+                      <span className="tapik-quantity-value">
+                        {Number(item.qty) || 1}
+                      </span>
+
+                      <button
+                        type="button"
+                        onClick={() => updateQty(item.id, 1)}
+                        aria-label="Increase quantity"
+                        className="tapik-quantity-button"
+                      >
+                        <img src={addButton} alt="" />
+                      </button>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="tapik-remove-button"
+                    onClick={() => remove(item.id)}
+                  >
+                    Remove item
+                  </button>
+                </div>
+
+                <div className="tapik-cart-line-price">
+                  <span>Item total</span>
+                  <strong>
+                    {money(
+                      (Number(item.price) || 0) * (Number(item.qty) || 1)
+                    )}
+                  </strong>
+                  <small>{money(item.price)} / piece</small>
+                </div>
+              </article>
+            ))}
+
+            <button
+              type="button"
+              className="tapik-continue-button"
+              onClick={() => setPage('customize')}
+            >
+              ← Continue shopping
+            </button>
+          </div>
+
+          <aside className="tapik-order-summary">
+            <h2>Price Breakdown</h2>
+            <p className="tapik-summary-caption">
+              Your order at a glance
+            </p>
+
+            <div className="tapik-summary-section">
+              <h3>Products</h3>
+
+              {cart.map((item) => (
+                <div className="tapik-summary-line" key={item.id}>
+                  <span>
+                    Keychain × {Number(item.qty) || 1}
+                  </span>
+                  <strong>
+                    {money(
+                      (Number(item.price) || 0) * (Number(item.qty) || 1)
+                    )}
+                  </strong>
+                </div>
+              ))}
+            </div>
+
+            <div className="tapik-summary-section">
+              <h3>Delivery</h3>
+
+              <div className="tapik-summary-line">
+                <span>Estimated shipping</span>
+                <strong>{money(shipping)}</strong>
+              </div>
+
+              <p className="tapik-shipping-note">
+                Estimated package weight: {(weight / 1000).toFixed(2)} kg.
+                Final delivery charges may vary.
+              </p>
+            </div>
+
+            <div className="tapik-summary-total">
+              <span>Total</span>
+              <strong>{money(total)}</strong>
+            </div>
+
+            <button
+              type="button"
+              className="tapik-primary-button tapik-checkout-button"
+              onClick={() => setPage('checkout')}
+            >
+              Proceed to Checkout
+              <span aria-hidden="true"> →</span>
+            </button>
+
+            <div className="tapik-checkout-note">
+              <span aria-hidden="true">✓</span>
+              Review your delivery details at checkout.
+            </div>
+          </aside>
         </div>
       </div>
-    </div>
+    </section>
   )
 }

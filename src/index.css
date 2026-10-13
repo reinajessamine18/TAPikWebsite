@@ -1,1 +1,690 @@
+
 @import "tailwindcss";
+
+:root {
+  font-family: "Trebuchet MS", Arial, sans-serif;
+  color: #fff;
+  background: #4f94b2;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+
+  --tapik-blue: #4f94b2;
+  --tapik-panel: #65a6c2;
+  --tapik-yellow: #ffc15b;
+  --tapik-white: #fff;
+  --tapik-text-shadow: 1px 2px 1px rgba(70, 70, 70, 0.65);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--tapik-yellow);
+  outline-offset: 3px;
+}
+
+/* Global application background */
+
+.tapik-app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  color: var(--tapik-white);
+  background-color: var(--tapik-blue);
+  background-position: center top;
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
+}
+
+.tapik-main {
+  flex: 1;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Single integrated navigation */
+
+.tapik-navbar {
+  position: relative;
+  z-index: 40;
+  width: 100%;
+  background: #4f94b2;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 7px 15px rgba(30, 72, 88, 0.28);
+}
+
+.tapik-navbar-inner {
+  width: 100%;
+  max-width: 1440px;
+  min-height: 76px;
+  margin: 0 auto;
+  padding: 8px clamp(16px, 5.5vw, 80px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.tapik-brand {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  gap: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.tapik-brand-logo {
+  display: block;
+  width: auto;
+  height: 50px;
+  object-fit: contain;
+}
+
+.tapik-brand-tagline {
+  color: var(--tapik-yellow);
+  font-size: clamp(13px, 1.4vw, 20px);
+  font-weight: 900;
+  text-shadow: 1px 2px 1px rgba(90, 80, 50, 0.25);
+  white-space: nowrap;
+}
+
+.tapik-navigation {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tapik-nav-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 13px;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 800;
+  transition: background-color 160ms ease;
+}
+
+.tapik-nav-link:hover,
+.tapik-nav-link.is-active {
+  color: #fff;
+  background: #65a6c2;
+}
+
+.tapik-cart-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 21px;
+  height: 21px;
+  padding: 0 5px;
+  border-radius: 999px;
+  color: #5b7d8d;
+  background: var(--tapik-yellow);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+/* Shared footer */
+
+.tapik-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+  padding: 18px 16px;
+  background: rgba(52, 126, 157, 0.88);
+  color: #fff;
+  text-align: center;
+  font-size: 13px;
+}
+
+/* Small screens */
+
+@media (max-width: 760px) {
+  .tapik-app {
+    background-attachment: scroll;
+  }
+
+  .tapik-navbar-inner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .tapik-brand {
+    justify-content: center;
+    gap: 10px;
+  }
+
+  .tapik-brand-logo {
+    height: 44px;
+  }
+
+  .tapik-brand-tagline {
+    white-space: normal;
+    font-size: 13px;
+  }
+
+  .tapik-navigation {
+    justify-content: center;
+    gap: 3px;
+  }
+
+  .tapik-nav-link {
+    padding: 8px 10px;
+    font-size: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+
+/* Shopping cart */
+
+.tapik-cart-page {
+  width: 100%;
+  min-height: 75vh;
+  padding: 36px clamp(16px, 4vw, 56px) 60px;
+  color: #fff;
+}
+
+.tapik-cart-container {
+  width: 100%;
+  max-width: 1240px;
+  margin: 0 auto;
+}
+
+.tapik-cart-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 26px;
+}
+
+.tapik-eyebrow {
+  margin: 0 0 7px;
+  color: #ffc15b;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 2px;
+}
+
+.tapik-cart-heading h1 {
+  margin: 0;
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 900;
+  text-shadow: var(--tapik-text-shadow);
+}
+
+.tapik-cart-subtitle {
+  margin: 8px 0 0;
+  color: #fff;
+  font-size: 15px;
+}
+
+.tapik-item-count {
+  flex-shrink: 0;
+  padding: 9px 15px;
+  border-radius: 999px;
+  background: #65a6c2;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.tapik-cart-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(280px, 0.9fr);
+  align-items: start;
+  gap: 24px;
+}
+
+.tapik-cart-items,
+.tapik-order-summary {
+  min-width: 0;
+  border-radius: 24px;
+  background: rgba(101, 166, 194, 0.96);
+  box-shadow: 0 12px 28px rgba(25, 67, 83, 0.22);
+}
+
+.tapik-cart-items {
+  padding: 24px;
+}
+
+.tapik-panel-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.tapik-panel-heading h2,
+.tapik-order-summary h2 {
+  margin: 0;
+  font-size: 23px;
+  font-weight: 900;
+  text-shadow: var(--tapik-text-shadow);
+}
+
+.tapik-panel-heading > span {
+  font-size: 12px;
+  color: #fff;
+}
+
+.tapik-cart-item {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.tapik-cart-product-image {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  padding: 8px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.tapik-cart-product-image > div {
+  width: 100%;
+}
+
+.tapik-cart-product-details {
+  min-width: 0;
+}
+
+.tapik-cart-product-details h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 900;
+  text-shadow: var(--tapik-text-shadow);
+}
+
+.tapik-product-description {
+  margin: 5px 0 10px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.tapik-product-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tapik-product-tags span {
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: rgba(49, 113, 142, 0.45);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.tapik-quantity-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.tapik-quantity-label {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.tapik-quantity-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+}
+
+.tapik-quantity-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 2px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.tapik-quantity-button img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.tapik-quantity-button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.tapik-quantity-value {
+  min-width: 16px;
+  color: #477f99;
+  text-align: center;
+  font-weight: 900;
+}
+
+.tapik-remove-button {
+  margin-top: 10px;
+  padding: 0;
+  border: 0;
+  color: #fff;
+  background: transparent;
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.tapik-cart-line-price {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  text-align: right;
+}
+
+.tapik-cart-line-price span,
+.tapik-cart-line-price small {
+  font-size: 11px;
+}
+
+.tapik-cart-line-price strong {
+  font-size: 17px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.tapik-continue-button {
+  margin-top: 12px;
+  padding: 8px 0;
+  border: 0;
+  color: #fff;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.tapik-order-summary {
+  padding: 25px;
+}
+
+.tapik-summary-caption {
+  margin: 7px 0 22px;
+  font-size: 13px;
+}
+
+.tapik-summary-section {
+  padding: 16px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.4);
+}
+
+.tapik-summary-section h3 {
+  margin: 0 0 12px;
+  color: #ffc15b;
+  font-size: 17px;
+  font-weight: 900;
+  text-shadow: 1px 1px 1px rgba(90, 80, 50, 0.25);
+}
+
+.tapik-summary-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin: 9px 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.tapik-summary-line span {
+  min-width: 0;
+}
+
+.tapik-summary-line strong {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.tapik-shipping-note {
+  margin: 10px 0 0;
+  font-size: 11px;
+  line-height: 1.6;
+  opacity: 0.92;
+}
+
+.tapik-summary-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 0;
+  border-top: 2px solid rgba(255, 255, 255, 0.5);
+}
+
+.tapik-summary-total span {
+  color: #ffc15b;
+  font-size: 24px;
+  font-weight: 900;
+  text-shadow: var(--tapik-text-shadow);
+}
+
+.tapik-summary-total strong {
+  font-size: clamp(20px, 2.5vw, 27px);
+  font-weight: 900;
+  white-space: nowrap;
+  text-shadow: var(--tapik-text-shadow);
+}
+
+.tapik-primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 13px 22px;
+  border: 0;
+  border-radius: 999px;
+  color: #fff;
+  background: #4f94b2;
+  box-shadow: 0 5px 12px rgba(32, 76, 92, 0.2);
+  font-size: 14px;
+  font-weight: 900;
+  transition: transform 150ms ease, background-color 150ms ease;
+}
+
+.tapik-primary-button:hover {
+  background: #397f9e;
+  transform: translateY(-1px);
+}
+
+.tapik-checkout-button {
+  width: 100%;
+}
+
+.tapik-checkout-note {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 7px;
+  margin-top: 14px;
+  font-size: 11px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.tapik-checkout-note span {
+  color: #fff;
+  font-weight: 900;
+}
+
+.tapik-empty-cart {
+  width: min(100%, 500px);
+  margin: 50px auto;
+  padding: 44px 24px;
+  border-radius: 24px;
+  background: rgba(101, 166, 194, 0.96);
+  box-shadow: 0 12px 28px rgba(25, 67, 83, 0.22);
+  text-align: center;
+}
+
+.tapik-empty-icon {
+  color: #ffc15b;
+  font-size: 54px;
+  line-height: 1;
+}
+
+.tapik-empty-cart h1 {
+  margin: 18px 0 10px;
+  font-size: 28px;
+  font-weight: 900;
+  text-shadow: var(--tapik-text-shadow);
+}
+
+.tapik-empty-cart p {
+  margin: 0 0 24px;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+/* Cart responsiveness */
+
+@media (max-width: 900px) {
+  .tapik-cart-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .tapik-order-summary {
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .tapik-cart-page {
+    padding: 24px 12px 36px;
+  }
+
+  .tapik-cart-heading {
+    align-items: flex-start;
+  }
+
+  .tapik-cart-heading h1 {
+    font-size: 29px;
+  }
+
+  .tapik-cart-subtitle {
+    font-size: 13px;
+  }
+
+  .tapik-cart-items,
+  .tapik-order-summary {
+    padding: 17px;
+    border-radius: 19px;
+  }
+
+  .tapik-cart-item {
+    grid-template-columns: 82px minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .tapik-cart-product-image {
+    grid-row: 1;
+    align-self: start;
+  }
+
+  .tapik-cart-product-details {
+    grid-column: 2;
+  }
+
+  .tapik-cart-line-price {
+    grid-column: 2;
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: 7px;
+    text-align: left;
+  }
+
+  .tapik-cart-line-price strong {
+    font-size: 16px;
+  }
+
+  .tapik-cart-line-price small {
+    width: 100%;
+  }
+
+  .tapik-panel-heading h2,
+  .tapik-order-summary h2 {
+    font-size: 21px;
+  }
+
+  .tapik-summary-total span {
+    font-size: 22px;
+  }
+}
