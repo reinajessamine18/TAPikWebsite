@@ -743,7 +743,7 @@ textarea:focus-visible {
 }
 
 .tapik-customize-label {
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
 }
 
@@ -783,7 +783,7 @@ textarea:focus-visible {
 .tapik-customize-qty-value {
   min-width: 20px;
   color: #4f94b2;
-  font-size: 16px;
+  font-size: 20px;
   font-weight: 900;
   text-align: center;
 }
@@ -800,7 +800,7 @@ textarea:focus-visible {
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  font-size: 13px;
+  font-size: 20px;
   line-height: 1.5;
 }
 
@@ -821,7 +821,7 @@ textarea:focus-visible {
 }
 
 .tapik-customize-unit-price {
-  font-size: 14px;
+  font-size: 20px;
   font-weight: 800;
 }
 
@@ -1017,7 +1017,7 @@ textarea:focus-visible {
 .tapik-customize-qty-value {
   min-width: 30px;
   color: #fff;
-  font-size: 22px;
+  font-size: 30px;
   font-weight: 900;
 }
 
@@ -1043,6 +1043,10 @@ textarea:focus-visible {
   .tapik-customize-qty-button {
     width: 42px;
     height: 42px;
+  }
+
+  .tapik-customize-qty-value {
+    font-size: 17px;
   }
 }
 
