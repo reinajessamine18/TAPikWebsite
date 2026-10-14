@@ -1,5 +1,38 @@
-import React from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import tapikLogo from '../assets/TAPik-logo.png'
+
+function Reveal({ children, delay = 0, className = '' }) {
+  const ref = useRef(null)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setVisible(true)
+          observer.disconnect()
+        }
+      },
+      { threshold: 0.15 }
+    )
+
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div
+      ref={ref}
+      className={`tapik-reveal ${visible ? 'is-visible' : ''} ${className}`}
+      style={{ transitionDelay: `${delay}ms` }}
+    >
+      {children}
+    </div>
+  )
+}
 
 export default function Home({ setPage }) {
   return (
@@ -15,10 +48,11 @@ export default function Home({ setPage }) {
             now with a digital tap.
           </h1>
 
-          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-blue-100 md:mx-0 md:text-lg">
-            Design your own acrylic keychain, choose your favorite shape
-            and clasp, and add an NFC link to connect your keepsake to
-            your digital world.
+          <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-white md:mx-0 md:text-lg">
+          TAPik is a smart accessory brand that merges personalized acrylic
+          design with embedded Near Field Communication (NFC) technology.
+          Rooted in the Filipino concept of anik-anik—decorative charms and
+          upgrades everyday accessories into interactive profile-sharing tools.
           </p>
 
           <div className="mt-6 flex flex-wrap justify-center gap-3 md:justify-start">
@@ -68,38 +102,89 @@ export default function Home({ setPage }) {
         </div>
       </section>
 
-      {/* FEATURES SECTION */}
-      <section className="bg-white/10 backdrop-blur">
-        <div className="mx-auto grid max-w-6xl gap-6 px-4 py-14 md:grid-cols-3">
-          {[
-            {
-              title: 'Make it yours',
-              text: 'Upload your own artwork and preview your design on the Customize page.',
-            },
-            {
-              title: 'Personalized NFC',
-              text: 'Connect your keychain to a website, social profile, or another supported link.',
-            },
-            {
-              title: 'Simple pricing',
-              text: 'Choose your shape and clasp, adjust the quantity, and review your total before checkout.',
-            },
-          ].map((feature) => (
-            <div
-              key={feature.title}
-              className="rounded-2xl border border-white/20 bg-white/5 p-6"
-            >
-              <h2 className="mb-2 text-xl font-bold text-yellow-400">
-                {feature.title}
-              </h2>
+      {/* THREE STEPS */}
+<section className="py-6">
+  {['Customized your Design', 'Program your Link', 'Tap & Connect'].map(
+    (label, i) => (
+      <Reveal key={label} delay={i * 120} className="mb-4">
+        <div className="tapik-pill-bar tapik-hover-card">{label}</div>
+      </Reveal>
+    )
+  )}
+</section>
 
-              <p className="leading-relaxed text-blue-100">
-                {feature.text}
-              </p>
-            </div>
-          ))}
-        </div>
-      </section>
+{/* WHAT SETS TAPIK APART */}
+<section className="mx-auto max-w-6xl px-4 py-14">
+  <Reveal>
+    <h2 className="tapik-section-title mb-8 text-center">
+      What sets <span className="text-[#ffc15b]">TAPik</span> apart?
+    </h2>
+  </Reveal>
+
+  <div className="grid gap-5 md:grid-cols-3">
+    {[
+      'We bridge beloved Filipino charm culture (anik-anik) with modern contactless tech',
+      'Our NFC chip is completely hidden beneath protective acrylic, keeping the artwork front and center.',
+      'Real-time web customization lets customers design, preview, and program their links before ordering.',
+    ].map((text, i) => (
+      <Reveal key={text} delay={i * 140}>
+        <div className="tapik-bubble tapik-hover-card">{text}</div>
+      </Reveal>
+    ))}
+  </div>
+</section>
+
+{/* KEY FEATURES + LINK VIA */}
+<section className="mx-auto grid max-w-6xl gap-8 px-4 pb-16 md:grid-cols-[1.4fr_1fr] md:items-start">
+  <Reveal>
+    <h2 className="tapik-section-title mb-4">Key Features:</h2>
+    <div className="tapik-feature-box tapik-hover-card">
+      <ul>
+        <li>High-Gloss Acrylic Container</li>
+        <li>Embedded NFC Chip</li>
+        <li>Custom Printed Artwork</li>
+        <li>Versatile Hardware</li>
+      </ul>
+    </div>
+  </Reveal>
+
+  <Reveal delay={160}>
+    <h3 className="tapik-section-title mb-4 text-[28px]">
+      You can Link it via:
+    </h3>
+    <div className="flex flex-wrap gap-2">
+      {[
+        'Social Media Profiles',
+        'Digital Contact Cards',
+        'Portfolios',
+        'LinkedIn Profiles',
+        'Custom Web Links',
+        'GCash',
+        'Spotify Playlists',
+      ].map((item) => (
+        <span key={item} className="tapik-link-chip tapik-hover-card">
+          {item}
+        </span>
+      ))}
+    </div>
+  </Reveal>
+</section>
+
+{/* CONNECT WITH US */}
+<section className="tapik-contact-strip">
+  <Reveal>
+    <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-6 px-4 py-8">
+      <h2 className="tapik-section-title">Connect with Us</h2>
+
+      <div className="tapik-contact-list">
+        <span>www.tapikco.com</span>
+        <span>tapikcorp@gmail.com</span>
+        <span>@tapik.official</span>
+        <span>TAPik Company</span>
+      </div>
+    </div>
+  </Reveal>
+</section>
     </div>
   )
 }

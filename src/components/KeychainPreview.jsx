@@ -2,6 +2,7 @@ import React from 'react'
 import { CLASP_ART } from './keychainParts'
 import leftArrow from '../assets/leftArrow.png'
 import rightArrow from '../assets/rightArrow.png'
+import ntag from '../assets/ntag.png'
 
 const DEBUG_ANCHOR = false
 
@@ -175,24 +176,33 @@ export default function KeychainPreview({
               }}
             >
               <div
-                className="absolute overflow-hidden bg-white"
+              className="absolute overflow-hidden bg-white"
+              style={{
+                inset: '9%',
+                borderRadius: shape === 'round' ? '50%' : '8px',
+              }}
+            >
+              {/* NFC sticker: the middle layer, between the acrylic and the design */}
+              <img
+                src={ntag}
+                alt=""
+                draggable={false}
+                className="absolute left-1/2 top-1/2 w-full -translate-x-1/2 -translate-y-1/2 object-contain"
                 style={{
-                  inset: '9%',
-                  borderRadius: shape === 'round' ? '50%' : '8px',
+                  filter: 'drop-shadow(0 2px 4px rgba(25,67,83,0.24))',
+                  opacity: 1,
                 }}
-              >
-                {image ? (
-                  <img
-                    src={image}
-                    alt="Your design"
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  <div className="flex h-full w-full items-center justify-center border-2 border-dashed border-blue-300 p-2 text-center text-xl text-yellow-400">
-                    Your design here
-                  </div>
-                )}
-              </div>
+              />
+
+              {/* Customer design: the top layer, covers the sticker once uploaded */}
+              {image && (
+                <img
+                  src={image}
+                  alt="Your design"
+                  className="absolute inset-0 h-full w-full bg-white object-cover"
+                />
+              )}
+            </div>
 
               <div
                 className="pointer-events-none absolute"
@@ -235,4 +245,3 @@ export default function KeychainPreview({
     </div>
   )
 }
-

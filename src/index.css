@@ -1118,3 +1118,112 @@ textarea:focus-visible {
     height: 42px;
   }
 }
+
+/* Home page: scroll reveal and hover lift */
+
+.tapik-reveal {
+  opacity: 0;
+  transform: translateY(36px);
+  transition: opacity 700ms ease, transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.tapik-reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+.tapik-hover-card,
+.tapik-stat-card {
+  transition: transform 220ms ease, box-shadow 220ms ease;
+}
+
+.tapik-hover-card:hover,
+.tapik-stat-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 16px 28px rgba(25, 67, 83, 0.3);
+}
+
+.tapik-section-title {
+  color: #fff;
+  font-size: clamp(30px, 5vw, 48px);
+  font-weight: 900;
+  text-shadow: var(--tapik-text-shadow);
+}
+
+.tapik-pill-bar {
+  width: min(100%, 94%);
+  padding: 14px 28px 14px 36px;
+  border-radius: 0 999px 999px 0;
+  background: var(--tapik-panel);
+  box-shadow: 0 8px 18px rgba(25, 67, 83, 0.22);
+  color: #fff;
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 900;
+  text-shadow: var(--tapik-text-shadow);
+}
+
+.tapik-pill-bar::before {
+  content: '•';
+  margin-right: 14px;
+}
+
+.tapik-bubble {
+  padding: 24px;
+  border-radius: 40px;
+  background: #fff;
+  box-shadow: 0 8px 18px rgba(25, 67, 83, 0.22);
+  color: var(--tapik-yellow);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.55;
+  text-align: center;
+}
+
+.tapik-feature-box {
+  padding: 26px 32px;
+  border-radius: 24px;
+  background: var(--tapik-panel);
+  box-shadow: 0 12px 28px rgba(25, 67, 83, 0.22);
+}
+
+.tapik-feature-box ul {
+  margin: 0;
+  padding-left: 22px;
+  list-style: disc;
+  font-size: clamp(18px, 2.4vw, 26px);
+  font-weight: 900;
+  line-height: 1.5;
+}
+
+.tapik-link-chip {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 10px;
+  background: #fff;
+  color: var(--tapik-yellow);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.tapik-contact-strip {
+  background: #f6d9a6;
+}
+
+.tapik-contact-strip .tapik-section-title {
+  font-size: clamp(26px, 4vw, 38px);
+}
+
+.tapik-contact-list {
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  gap: 8px 32px;
+  color: #2a2a2a;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+@media (max-width: 560px) {
+  .tapik-contact-list {
+    grid-template-columns: 1fr;
+  }
+}
