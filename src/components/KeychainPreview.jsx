@@ -187,8 +187,10 @@ export default function KeychainPreview({
                 src={ntag}
                 alt=""
                 draggable={false}
-                className="absolute left-1/2 top-1/2 w-full -translate-x-1/2 -translate-y-1/2 object-contain"
+                className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 object-contain"
                 style={{
+                  width: '200%',
+                  maxWidth: 'none',
                   filter: 'drop-shadow(0 2px 4px rgba(25,67,83,0.24))',
                   opacity: 1,
                 }}
