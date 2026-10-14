@@ -6,9 +6,16 @@ import rightArrow from '../assets/rightArrow.png'
 const DEBUG_ANCHOR = false
 
 // Fixed vertical positions of the two arrow pairs, as % of the stage height.
-// They never change, so the arrows no longer move when you switch parts.
 const CLASP_ARROWS_TOP = '20%'
-const ACRYLIC_ARROWS_TOP = '50%'
+const ACRYLIC_ARROWS_TOP = '52%'
+
+// STAGE SIZE: the stage is an invisible box, so the arrows never move.
+// Lower STAGE_H to remove empty space under the keychain.
+// If the bottom of the acrylic gets cut off or touches the buttons, raise it.
+const STAGE_W = 520
+const STAGE_H = 440
+// The keychain itself stays 360px wide inside the wider stage
+const KEYCHAIN_W_PERCENT = (360 / STAGE_W) * 100
 
 const ACRYLIC_SHAPES = {
   rectangle: { width: 44, ratio: 1.45, radius: '10px' },
@@ -27,10 +34,11 @@ function StageArrow({ side, top, label, onClick }) {
       type="button"
       onClick={onClick}
       aria-label={label}
-      className={`tapik-preview-arrow tapik-preview-arrow--${side} absolute z-30`}
+      className="tapik-preview-arrow absolute z-30"
       style={{
         top,
         transform: 'translateY(-50%)',
+        ...(isLeft ? { left: 0 } : { right: 0 }),
       }}
     >
       <img src={isLeft ? leftArrow : rightArrow} alt="" />
@@ -59,13 +67,12 @@ export default function KeychainPreview({
   const clasp3d = { filter: 'drop-shadow(2px 4px 3px rgba(25,67,83,0.35))' }
 
   return (
-    /* STAGE: invisible, fixed-size box. Its size never changes, so nothing
-       inside it can push the arrows around. */
+    /* STAGE: invisible, fixed-size box. Nothing inside it can move the arrows. */
     <div
-      className="relative mx-auto w-full max-w-[360px]"
-      style={{ aspectRatio: '360 / 540' }}
+      className="relative mx-auto w-full"
+      style={{ maxWidth: STAGE_W, aspectRatio: `${STAGE_W} / ${STAGE_H}` }}
     >
-      {/* ARROWS: pinned to the stage, independent of the keychain */}
+      {/* ARROWS: pinned to the stage edges */}
       <StageArrow
         side="left"
         top={CLASP_ARROWS_TOP}
@@ -92,7 +99,14 @@ export default function KeychainPreview({
       />
 
       {/* KEYCHAIN: pinned to the top-center of the stage */}
-      <div className="absolute inset-x-0 top-0">
+      <div
+        className="absolute top-0"
+        style={{
+          left: '50%',
+          width: `${KEYCHAIN_W_PERCENT}%`,
+          transform: 'translateX(-50%)',
+        }}
+      >
         <div className="relative mx-auto" style={{ width: `${clasp.width}%` }}>
           {/* CLASP, BACK COPY */}
           <img
@@ -122,76 +136,76 @@ export default function KeychainPreview({
               }}
             >
               {/* Tab with hole */}
-              <div
-                className="relative"
+            <div
+              className="relative"
+              style={{
+                width: '22%',
+                aspectRatio: '1 / 0.85',
+                marginBottom: '-3px',
+                borderRadius: '10px 10px 0 0',
+                background: 'rgba(255,255,255,0.55)',
+                border: '3px solid rgba(255,255,255,0.85)',
+                borderBottom: 'none',
+              }}
+            >
+              <span
+                className="absolute left-1/2 block rounded-full"
                 style={{
-                  width: '22%',
-                  aspectRatio: '1 / 0.85',
-                  marginBottom: '-3px',
-                  borderRadius: '10px 10px 0 0',
-                  background: 'rgba(255,255,255,0.55)',
-                  border: '3px solid rgba(255,255,255,0.85)',
-                  borderBottom: 'none',
+                  top: '48%',
+                  width: '38%',
+                  aspectRatio: '1',
+                  transform: 'translate(-50%, -50%)',
+                  background: 'rgba(25, 67, 83, 0.35)',
+                  boxShadow: 'inset 1px 2px 3px rgba(0,0,0,0.35)',
+                }}
+              />
+            </div>
+
+            {/* Acrylic body */}
+            <div
+              className="relative w-full overflow-hidden"
+              style={{
+                paddingBottom: `${a.ratio * 100}%`,
+                borderRadius: a.radius,
+                background:
+                  'linear-gradient(135deg, rgba(255,255,255,0.55), rgba(220,245,250,0.25) 50%, rgba(255,255,255,0.5))',
+                border: '4px solid rgba(255,255,255,0.8)',
+                boxShadow:
+                  'inset 3px 3px 4px rgba(255,255,255,0.9), inset -4px -4px 0 rgba(150,206,210,0.3)',
+              }}
+            >
+              <div
+                className="absolute overflow-hidden bg-white"
+                style={{
+                  inset: '9%',
+                  borderRadius: shape === 'round' ? '50%' : '8px',
                 }}
               >
-                <span
-                  className="absolute left-1/2 block rounded-full"
-                  style={{
-                    top: '48%',
-                    width: '38%',
-                    aspectRatio: '1',
-                    transform: 'translate(-50%, -50%)',
-                    background: 'rgba(25, 67, 83, 0.35)',
-                    boxShadow: 'inset 1px 2px 3px rgba(0,0,0,0.35)',
-                  }}
-                />
+                {image ? (
+                  <img
+                    src={image}
+                    alt="Your design"
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center border-2 border-dashed border-blue-300 p-2 text-center text-xl text-yellow-400">
+                    Your design here
+                  </div>
+                )}
               </div>
 
-              {/* Acrylic body */}
               <div
-                className="relative w-full overflow-hidden"
+                className="pointer-events-none absolute"
                 style={{
-                  paddingBottom: `${a.ratio * 100}%`,
-                  borderRadius: a.radius,
+                  top: '-20%',
+                  left: '-30%',
+                  width: '45%',
+                  height: '140%',
+                  transform: 'rotate(16deg)',
                   background:
-                    'linear-gradient(135deg, rgba(255,255,255,0.55), rgba(220,245,250,0.25) 50%, rgba(255,255,255,0.5))',
-                  border: '4px solid rgba(255,255,255,0.8)',
-                  boxShadow:
-                    'inset 3px 3px 4px rgba(255,255,255,0.9), inset -4px -4px 0 rgba(150,206,210,0.3)',
+                    'linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)',
                 }}
-              >
-                <div
-                  className="absolute overflow-hidden bg-white"
-                  style={{
-                    inset: '9%',
-                    borderRadius: shape === 'round' ? '50%' : '8px',
-                  }}
-                >
-                  {image ? (
-                    <img
-                      src={image}
-                      alt="Your design"
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center border-2 border-dashed border-blue-300 p-2 text-center text-xl text-yellow-400">
-                      Your design here
-                    </div>
-                  )}
-                </div>
-
-                <div
-                  className="pointer-events-none absolute"
-                  style={{
-                    top: '-20%',
-                    left: '-30%',
-                    width: '45%',
-                    height: '140%',
-                    transform: 'rotate(16deg)',
-                    background:
-                      'linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)',
-                  }}
-                />
+              />
               </div>
             </div>
           </div>
