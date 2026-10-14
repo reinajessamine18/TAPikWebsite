@@ -1,18 +1,25 @@
 // TAPik component pricing based on the business proposal.
 // Prices are in Philippine Pesos (PHP).
-
 export const SHAPES = [
   { id: 'rectangle', label: 'Rectangle', price: 20 },
   { id: 'curved', label: 'Curved Rectangle', price: 20 },
+  { id: 'round', label: 'Round', price: 20 },
   { id: 'square', label: 'Square', price: 20 },
-  { id: 'octagonal', label: 'Octagonal', price: 20 },
-  { id: 'heart', label: 'Heart', price: 20 },
 ]
-
 export const CHAINS = [
-  { id: 'split', label: 'Split ring only (included)', price: 0 },
-  { id: 'gold', label: 'Gold ring + lobster clasp', price: 12 },
-  { id: 'silver', label: 'Silver ring + lobster clasp', price: 12 },
+  { id: 'ring',      label: 'Ring',       price: 12 },
+  { id: 'gold',      label: 'Gold',       price: 12 },
+  { id: 'silver',    label: 'Silver',     price: 12 },
+  { id: 'red',       label: 'Red',        price: 12 },
+  { id: 'orange',    label: 'Orange',     price: 12 },
+  { id: 'yellow',    label: 'Yellow',     price: 12 },
+  { id: 'green',     label: 'Green',      price: 12 },
+  { id: 'blue',      label: 'Blue',       price: 12 },
+  { id: 'purple',    label: 'Purple',     price: 12 },
+  { id: 'black',     label: 'Black',      price: 12 },
+  { id: 'white',     label: 'White',      price: 12 },
+  { id: 'lightpink', label: 'Light Pink', price: 12 },
+  { id: 'rosepink',  label: 'Rose Pink',  price: 12 },
 ]
 
 export const NFC_PRICE = 18
