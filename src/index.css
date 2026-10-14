@@ -129,6 +129,30 @@ textarea:focus-visible {
   white-space: nowrap;
 }
 
+/* Home page highlight cards */
+
+.tapik-stat-card {
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-radius: 16px;
+  background: var(--tapik-blue);
+  box-shadow: 0 8px 18px rgba(25, 67, 83, 0.25);
+  text-align: center;
+}
+
+.tapik-stat-value {
+  color: var(--tapik-yellow);
+  font-size: 20px;
+  font-weight: 900;
+  text-shadow: var(--tapik-text-shadow);
+}
+
+.tapik-stat-label {
+  margin-top: 4px;
+  color: var(--tapik-white);
+  font-size: 12px;
+}
+
 .tapik-navigation {
   display: flex;
   align-items: center;
@@ -1017,6 +1041,79 @@ textarea:focus-visible {
   }
 
   .tapik-customize-qty-button {
+    width: 42px;
+    height: 42px;
+  }
+}
+
+.tapik-variation-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 110px;
+  height: 110px;
+}
+
+.tapik-variation-thumb img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(2px 4px 3px rgba(25, 67, 83, 0.35));
+}
+
+@media (max-width: 560px) {
+  .tapik-variation-thumb {
+    width: 90px;
+    height: 90px;
+  }
+}
+
+.tapik-preview-arrow {
+  width: 84px;
+  height: 84px;
+}
+
+.tapik-preview-arrow--left {
+  left: -100px;
+}
+
+.tapik-preview-arrow--right {
+  right: -100px;
+}
+
+@media (max-width: 560px) {
+  .tapik-preview-arrow {
+    width: 56px;
+    height: 56px;
+  }
+
+  .tapik-preview-arrow--left {
+  left: -90px;
+}
+
+.tapik-preview-arrow--right {
+  right: -90px;
+}
+}
+
+.tapik-preview-arrow img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.tapik-preview-arrow:hover {
+  transform: scale(1.12);
+}
+
+.tapik-preview-arrow:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 560px) {
+  .tapik-preview-arrow {
     width: 42px;
     height: 42px;
   }

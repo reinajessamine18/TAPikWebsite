@@ -1,4 +1,3 @@
-
 import React, { useRef, useState } from 'react'
 import KeychainPreview from '../components/KeychainPreview'
 import {
@@ -12,8 +11,6 @@ import {
 } from '../lib/pricing'
 import { newId } from '../lib/storage'
 
-import leftArrow from '../assets/leftArrow.png'
-import rightArrow from '../assets/rightArrow.png'
 import uploadDesign from '../assets/uploadDesign.png'
 import nfcLink from '../assets/nfcLink.png'
 import addButton from '../assets/addbutton.png'
@@ -21,7 +18,7 @@ import minusButton from '../assets/minusbutton.png'
 
 export default function Customize({ onAddToCart }) {
   const [image, setImage] = useState(null)
-  const [shape, setShape] = useState('rectangle')
+  const [shape, setShape] = useState('round')
   const [chain, setChain] = useState('gold')
   const [nfcLinkValue, setNfcLinkValue] = useState('')
   const [qty, setQty] = useState(1)
@@ -158,7 +155,7 @@ export default function Customize({ onAddToCart }) {
   }
 
   const actionTextClass =
-  'text-sm text-white underline transition-colors hover:text-yellow-400'
+    'text-sm text-white underline transition-colors hover:text-yellow-400'
 
   const buttonImageClass =
     'block h-auto w-32 max-w-full cursor-pointer object-contain transition duration-200 hover:scale-105 sm:w-40'
@@ -171,87 +168,29 @@ export default function Customize({ onAddToCart }) {
         </h2>
 
         <div className="grid gap-10 md:grid-cols-2">
-          {/* LEFT: PREVIEW, ARROWS, UPLOAD AND NFC */}
+          {/* LEFT: PREVIEW (WITH ARROWS), UPLOAD AND NFC */}
           <div className="tapik-customize-preview">
-            {/* CHAIN SELECTOR */}
-            <div className="tapik-variation-controls">
-              <span className="tapik-variation-label">
-                CLASP / CHAIN
-              </span>
-
-              <div className="tapik-variation-arrows">
-                <button
-                  type="button"
-                  onClick={() => cycleChain(-1)}
-                  className="tapik-variation-arrow"
-                  aria-label="Previous clasp"
-                >
-                  <img src={leftArrow} alt="" />
-                </button>
-
-                <span className="tapik-variation-current">
-                  {selectedChain?.label}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() => cycleChain(1)}
-                  className="tapik-variation-arrow"
-                  aria-label="Next clasp"
-                >
-                  <img src={rightArrow} alt="" />
-                </button>
-              </div>
-            </div>
-
-            {/* KEYCHAIN PREVIEW */}
+            {/* KEYCHAIN PREVIEW: arrows sit beside the clasp and the acrylic */}
             <div className="tapik-keychain-display">
               <KeychainPreview
                 shape={shape}
                 chain={chain}
                 image={image}
+                onPrevChain={() => cycleChain(-1)}
+                onNextChain={() => cycleChain(1)}
+                onPrevShape={() => cycleShape(-1)}
+                onNextShape={() => cycleShape(1)}
               />
 
-              <p className="tapik-preview-hint">
-                {image
-                  ? 'Your design appears inside the acrylic keychain.'
-                  : 'Upload an image to preview your design.'}
-              </p>
-            </div>
-
-            {/* SHAPE SELECTOR */}
-            <div className="tapik-variation-controls">
-              <span className="tapik-variation-label">
-                ACRYLIC SHAPE
+              {/* Screen-reader announcement of the current choices */}
+              <span className="sr-only" aria-live="polite">
+                {selectedChain?.label}, {selectedShape.label}
               </span>
 
-              <div className="tapik-variation-arrows">
-                <button
-                  type="button"
-                  onClick={() => cycleShape(-1)}
-                  className="tapik-variation-arrow"
-                  aria-label="Previous acrylic shape"
-                >
-                  <img src={leftArrow} alt="" />
-                </button>
-
-                <span className="tapik-variation-current">
-                  {selectedShape.label}
-                </span>
-
-                <button
-                  type="button"
-                  onClick={() => cycleShape(1)}
-                  className="tapik-variation-arrow"
-                  aria-label="Next acrylic shape"
-                >
-                  <img src={rightArrow} alt="" />
-                </button>
-              </div>
             </div>
 
             {/* UPLOAD AND NFC BUTTONS */}
-            <div className="mt-8 grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               {/* UPLOAD DESIGN */}
               <div className="flex min-w-0 flex-col items-center text-center">
                 <button
@@ -322,24 +261,16 @@ export default function Customize({ onAddToCart }) {
                 </button>
 
                 {nfcLinkValue && (
-                  <div className="mt-3 flex flex-col items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={handleOpenNfcPopup}
-                      className={actionTextClass}
-                    >
-                      EDIT
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handleRemoveNfcLink}
-                      className={actionTextClass}
-                    >
-                      Remove link
-                    </button>
-                  </div>
-                )}
+                <div className="mt-3 flex flex-col items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={handleRemoveNfcLink}
+                    className={actionTextClass}
+                  >
+                    Remove link
+                  </button>
+                </div>
+              )}
               </div>
             </div>
           </div>
@@ -387,7 +318,7 @@ export default function Customize({ onAddToCart }) {
                 </div>
 
                 <div>
-                  <span>Chain / clasp</span>
+                  <span>Lobster clasp ({selectedChain?.label})</span>
                   <span>PHP {selectedChain?.price ?? 0}</span>
                 </div>
 
@@ -545,3 +476,4 @@ export default function Customize({ onAddToCart }) {
     </div>
   )
 }
+

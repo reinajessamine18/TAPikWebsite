@@ -9,10 +9,6 @@ export default function Home({ setPage }) {
 
         {/* LEFT: TEXT CONTENT */}
         <div className="order-2 text-center md:order-1 md:text-left">
-          <p className="mb-3 text-sm font-bold tracking-widest text-yellow-400">
-            TAPik — FILIPINO ANIK-ANIK + NFC
-          </p>
-
           <h1 className="text-4xl font-black leading-tight md:text-5xl">
             Make your own
             <span className="text-yellow-400"> anik-anik</span>,
@@ -29,49 +25,37 @@ export default function Home({ setPage }) {
             <button
               type="button"
               onClick={() => setPage('customize')}
-              className="rounded-full bg-yellow-400 px-6 py-3 font-bold text-blue-950 transition hover:bg-yellow-300"
+              className="rounded-full bg-yellow-400 px-6 py-3 font-bold text-white transition hover:bg-yellow-300"
             >
               Start customizing
             </button>
 
             <button
-              type="button"
-              onClick={() => setPage('cart')}
-              className="rounded-full border border-yellow-400 px-6 py-3 font-bold text-yellow-400 transition hover:bg-yellow-400/10"
-            >
-              View cart
-            </button>
+            type="button"
+            onClick={() => setPage('cart')}
+            className="rounded-full border border-white px-6 py-3 font-bold text-white transition hover:bg-white/10"
+          >
+            View cart
+          </button>
           </div>
 
           {/* PRODUCT HIGHLIGHTS */}
-          <div className="mt-8 grid grid-cols-3 gap-3 text-center">
-            <div className="rounded-xl bg-blue-800/50 p-3">
-              <div className="text-lg font-black text-yellow-400 sm:text-xl">
-                PHP 78
-              </div>
-              <div className="mt-1 text-xs text-blue-200">
-                Standard build
-              </div>
-            </div>
-
-            <div className="rounded-xl bg-blue-800/50 p-3">
-              <div className="text-lg font-black text-yellow-400 sm:text-xl">
-                4
-              </div>
-              <div className="mt-1 text-xs text-blue-200">
-                Acrylic shapes
-              </div>
-            </div>
-
-            <div className="rounded-xl bg-blue-800/50 p-3">
-              <div className="text-lg font-black text-yellow-400 sm:text-xl">
-                NFC
-              </div>
-              <div className="mt-1 text-xs text-blue-200">
-                Tap-to-open link
-              </div>
-            </div>
+        <div className="mt-8 grid grid-cols-3 gap-3">
+          <div className="tapik-stat-card">
+            <div className="tapik-stat-value">PHP 78</div>
+            <div className="tapik-stat-label">Standard build</div>
           </div>
+
+          <div className="tapik-stat-card">
+            <div className="tapik-stat-value">4</div>
+            <div className="tapik-stat-label">Acrylic shapes</div>
+          </div>
+
+          <div className="tapik-stat-card">
+            <div className="tapik-stat-value">NFC</div>
+            <div className="tapik-stat-label">Tap-to-open link</div>
+          </div>
+        </div>
         </div>
 
         {/* RIGHT: LOGO SIZED TO BALANCE THE TEXT */}

@@ -1,8 +1,14 @@
 import React from 'react'
 import { CLASP_ART } from './keychainParts'
+import leftArrow from '../assets/leftArrow.png'
+import rightArrow from '../assets/rightArrow.png'
 
-// true = shows a red dot at the anchor so you can tune it
 const DEBUG_ANCHOR = false
+
+// Fixed vertical positions of the two arrow pairs, as % of the stage height.
+// They never change, so the arrows no longer move when you switch parts.
+const CLASP_ARROWS_TOP = '20%'
+const ACRYLIC_ARROWS_TOP = '50%'
 
 const ACRYLIC_SHAPES = {
   rectangle: { width: 44, ratio: 1.45, radius: '10px' },
@@ -11,144 +17,208 @@ const ACRYLIC_SHAPES = {
   square:    { width: 50, ratio: 1.0,  radius: '10px' },
 }
 
-const HOLE = 0.075 // hole center, as a fraction of acrylic width below its top
+const HOLE = 0.075
+
+// Arrow pinned to the left or right edge of the stage
+function StageArrow({ side, top, label, onClick }) {
+  const isLeft = side === 'left'
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={`tapik-preview-arrow tapik-preview-arrow--${side} absolute z-30`}
+      style={{
+        top,
+        transform: 'translateY(-50%)',
+      }}
+    >
+      <img src={isLeft ? leftArrow : rightArrow} alt="" />
+    </button>
+  )
+}
 
 export default function KeychainPreview({
-  shape = 'rectangle',
-  chain = 'ring',
+  shape = 'round',
+  chain = 'gold',
   image = null,
+  onPrevChain,
+  onNextChain,
+  onPrevShape,
+  onNextShape,
 }) {
-  const clasp = CLASP_ART[chain] || CLASP_ART.ring
-  const a = ACRYLIC_SHAPES[shape] || ACRYLIC_SHAPES.rectangle
+  const clasp = CLASP_ART[chain] || CLASP_ART.gold
+  const a = ACRYLIC_SHAPES[shape] || ACRYLIC_SHAPES.round
   const aw = (a.width / clasp.width) * 100
 
-  // Front copy shows only a small window on the LEFT of the ring's bottom wire,
-  // so the wire crosses in front of the tab on that side only.
-  const frontClip = `inset(${clasp.anchorY - 10}% ${100 - clasp.anchorX}% ${
-    Math.max(0, 100 - clasp.anchorY - 10)
-  }% ${clasp.anchorX - 16}%)`
+  const frontClip = `inset(${clasp.anchorY - 10}% ${100 - clasp.anchorX}% ${Math.max(
+    0,
+    100 - clasp.anchorY - 10
+  )}% ${clasp.anchorX - 16}%)`
 
   const clasp3d = { filter: 'drop-shadow(2px 4px 3px rgba(25,67,83,0.35))' }
 
   return (
+    /* STAGE: invisible, fixed-size box. Its size never changes, so nothing
+       inside it can push the arrows around. */
     <div
-      className="mx-auto w-full max-w-[360px]"
-      style={{ paddingBottom: `${a.width * (a.ratio + 0.16)}%` }}
+      className="relative mx-auto w-full max-w-[360px]"
+      style={{ aspectRatio: '360 / 540' }}
     >
-      <div className="relative mx-auto" style={{ width: `${clasp.width}%` }}>
-        {/* CLASP, BACK COPY (behind the acrylic) */}
-        <img
-          key={`back-${chain}`}
-          src={clasp.src}
-          alt=""
-          draggable={false}
-          className="relative z-0 block h-auto w-full"
-          style={clasp3d}
-        />
+      {/* ARROWS: pinned to the stage, independent of the keychain */}
+      <StageArrow
+        side="left"
+        top={CLASP_ARROWS_TOP}
+        label="Previous clasp"
+        onClick={onPrevChain}
+      />
+      <StageArrow
+        side="right"
+        top={CLASP_ARROWS_TOP}
+        label="Next clasp"
+        onClick={onNextChain}
+      />
+      <StageArrow
+        side="left"
+        top={ACRYLIC_ARROWS_TOP}
+        label="Previous acrylic shape"
+        onClick={onPrevShape}
+      />
+      <StageArrow
+        side="right"
+        top={ACRYLIC_ARROWS_TOP}
+        label="Next acrylic shape"
+        onClick={onNextShape}
+      />
 
-        {/* ACRYLIC (middle layer) */}
-        <div
-          className="absolute z-10 flex flex-col items-center"
-          style={{
-            left: `${clasp.anchorX}%`,
-            top: `${clasp.anchorY}%`,
-            width: `${aw}%`,
-            transform: 'translateX(-50%)',
-            marginTop: `-${HOLE * aw}%`,
-            filter: 'drop-shadow(6px 10px 10px rgba(25, 67, 83, 0.35))',
-          }}
-        >
-          {/* Tab with hole */}
+      {/* KEYCHAIN: pinned to the top-center of the stage */}
+      <div className="absolute inset-x-0 top-0">
+        <div className="relative mx-auto" style={{ width: `${clasp.width}%` }}>
+          {/* CLASP, BACK COPY */}
+          <img
+            key={`back-${chain}`}
+            src={clasp.src}
+            alt=""
+            draggable={false}
+            className="relative z-0 block h-auto w-full"
+            style={clasp3d}
+          />
+
+          {/* ACRYLIC */}
           <div
-            className="relative"
-            style={{
-              width: '22%',
-              aspectRatio: '1 / 0.85',
-              marginBottom: '-3px',
-              borderRadius: '10px 10px 0 0',
-              background: 'rgba(255,255,255,0.55)',
-              border: '3px solid rgba(255,255,255,0.85)',
-              borderBottom: 'none',
-            }}
-          >
-            <span
-              className="absolute left-1/2 block rounded-full"
-              style={{
-                top: '48%',
-                width: '38%',
-                aspectRatio: '1',
-                transform: 'translate(-50%, -50%)',
-                background: 'rgba(25, 67, 83, 0.35)',
-                boxShadow: 'inset 1px 2px 3px rgba(0,0,0,0.35)',
-              }}
-            />
-          </div>
-
-          {/* Acrylic body */}
-          <div
-            className="relative w-full overflow-hidden"
-            style={{
-              paddingBottom: `${a.ratio * 100}%`,
-              borderRadius: a.radius,
-              background:
-                'linear-gradient(135deg, rgba(255,255,255,0.55), rgba(220,245,250,0.25) 50%, rgba(255,255,255,0.5))',
-              border: '4px solid rgba(255,255,255,0.8)',
-              boxShadow:
-                'inset 3px 3px 4px rgba(255,255,255,0.9), inset -4px -4px 0 rgba(150,206,210,0.3)',
-            }}
-          >
-            <div
-              className="absolute overflow-hidden bg-white"
-              style={{
-                inset: '9%',
-                borderRadius: shape === 'round' ? '50%' : '8px',
-              }}
-            >
-              {image ? (
-                <img src={image} alt="Your design" className="h-full w-full object-cover" />
-              ) : (
-                <div className="flex h-full w-full items-center justify-center border-2 border-dashed border-blue-300 p-2 text-center text-xl text-yellow-400">
-                  Your design here
-                </div>
-              )}
-            </div>
-
-            <div
-              className="pointer-events-none absolute"
-              style={{
-                top: '-20%',
-                left: '-30%',
-                width: '45%',
-                height: '140%',
-                transform: 'rotate(16deg)',
-                background:
-                  'linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)',
-              }}
-            />
-          </div>
-        </div>
-
-        {/* CLASP, FRONT COPY (clipped: only the left part of the ring wire) */}
-        <img
-          key={`front-${chain}`}
-          src={clasp.src}
-          alt=""
-          draggable={false}
-          className="absolute inset-0 z-20 block h-auto w-full"
-          style={{ ...clasp3d, clipPath: frontClip }}
-        />
-
-        {DEBUG_ANCHOR && (
-          <span
-            className="absolute z-30 h-2 w-2 rounded-full bg-red-500"
+            className="absolute z-10"
             style={{
               left: `${clasp.anchorX}%`,
               top: `${clasp.anchorY}%`,
-              transform: 'translate(-50%, -50%)',
+              width: `${aw}%`,
+              transform: 'translateX(-50%)',
+              marginTop: `-${HOLE * aw}%`,
             }}
+          >
+            <div
+              className="flex flex-col items-center"
+              style={{
+                filter: 'drop-shadow(6px 10px 10px rgba(25, 67, 83, 0.35))',
+              }}
+            >
+              {/* Tab with hole */}
+              <div
+                className="relative"
+                style={{
+                  width: '22%',
+                  aspectRatio: '1 / 0.85',
+                  marginBottom: '-3px',
+                  borderRadius: '10px 10px 0 0',
+                  background: 'rgba(255,255,255,0.55)',
+                  border: '3px solid rgba(255,255,255,0.85)',
+                  borderBottom: 'none',
+                }}
+              >
+                <span
+                  className="absolute left-1/2 block rounded-full"
+                  style={{
+                    top: '48%',
+                    width: '38%',
+                    aspectRatio: '1',
+                    transform: 'translate(-50%, -50%)',
+                    background: 'rgba(25, 67, 83, 0.35)',
+                    boxShadow: 'inset 1px 2px 3px rgba(0,0,0,0.35)',
+                  }}
+                />
+              </div>
+
+              {/* Acrylic body */}
+              <div
+                className="relative w-full overflow-hidden"
+                style={{
+                  paddingBottom: `${a.ratio * 100}%`,
+                  borderRadius: a.radius,
+                  background:
+                    'linear-gradient(135deg, rgba(255,255,255,0.55), rgba(220,245,250,0.25) 50%, rgba(255,255,255,0.5))',
+                  border: '4px solid rgba(255,255,255,0.8)',
+                  boxShadow:
+                    'inset 3px 3px 4px rgba(255,255,255,0.9), inset -4px -4px 0 rgba(150,206,210,0.3)',
+                }}
+              >
+                <div
+                  className="absolute overflow-hidden bg-white"
+                  style={{
+                    inset: '9%',
+                    borderRadius: shape === 'round' ? '50%' : '8px',
+                  }}
+                >
+                  {image ? (
+                    <img
+                      src={image}
+                      alt="Your design"
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center border-2 border-dashed border-blue-300 p-2 text-center text-xl text-yellow-400">
+                      Your design here
+                    </div>
+                  )}
+                </div>
+
+                <div
+                  className="pointer-events-none absolute"
+                  style={{
+                    top: '-20%',
+                    left: '-30%',
+                    width: '45%',
+                    height: '140%',
+                    transform: 'rotate(16deg)',
+                    background:
+                      'linear-gradient(90deg, transparent, rgba(255,255,255,0.45), transparent)',
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* CLASP, FRONT COPY */}
+          <img
+            key={`front-${chain}`}
+            src={clasp.src}
+            alt=""
+            draggable={false}
+            className="absolute inset-0 z-20 block h-auto w-full"
+            style={{ ...clasp3d, clipPath: frontClip }}
           />
-        )}
+
+          {DEBUG_ANCHOR && (
+            <span
+              className="absolute z-30 h-2 w-2 rounded-full bg-red-500"
+              style={{
+                left: `${clasp.anchorX}%`,
+                top: `${clasp.anchorY}%`,
+                transform: 'translate(-50%, -50%)',
+              }}
+            />
+          )}
+        </div>
       </div>
     </div>
   )
 }
+
