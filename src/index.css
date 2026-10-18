@@ -1394,15 +1394,66 @@ textarea:focus-visible {
 
 .tapik-contact-list {
   display: grid;
-  grid-template-columns: repeat(2, auto);
-  gap: 8px 32px;
+  flex: 1 1 520px;
+  max-width: 620px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.tapik-contact-card {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid rgba(42, 42, 42, 0.12);
+  border-radius: 14px;
+  background: #fff7ea;
   color: #2a2a2a;
   font-size: 15px;
   font-weight: 800;
+  text-decoration: none;
+  transition: transform 220ms ease, color 220ms ease;
+  box-shadow: 0 8px 18px rgba(25, 67, 83, 0.22);
+
+}
+
+.tapik-contact-card:hover {
+  color: #47768b;
+  transform: translateY(-6px);
+}
+
+.tapik-contact-card img {
+  width: 42px;
+  height: 42px;
+  flex: none;
+  object-fit: contain;
+}
+
+.tapik-contact-card span {
+  overflow-wrap: anywhere;
+}
+
+.tapik-hero-logo {
+  opacity: 0;
+  transform: translateY(18px) scale(0.98);
+  transition: opacity 500ms ease, transform 500ms ease;
+}
+
+.tapik-hero-logo.is-in-view {
+  opacity: 1;
+  transform: none;
 }
 
 @media (max-width: 560px) {
   .tapik-contact-list {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tapik-hero-logo,
+  .tapik-contact-card {
+    transition: none;
   }
 }

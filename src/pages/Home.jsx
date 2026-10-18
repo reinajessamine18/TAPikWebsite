@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import tapikLogo from '../assets/TAPik-logo.png'
+import websiteLogo from '../assets/websitelogo.png'
+import emailLogo from '../assets/emailLogo.png'
+import instagramLogo from '../assets/instagramlogo.png'
+import facebookLogo from '../assets/facebooklogo.png'
 import { loadOrders } from '../lib/storage'
 import { displayOrderStatus, orderStatusColor } from '../lib/orderStatus'
 
@@ -48,6 +52,20 @@ export default function Home({ setPage, onAccount, account }) {
     (count, item) => count + (Number(item.qty) || 1),
     0
   )
+  const [heroLogoVisible, setHeroLogoVisible] = useState(() => typeof IntersectionObserver === 'undefined')
+  const heroLogoRef = useRef(null)
+
+  useEffect(() => {
+    const logo = heroLogoRef.current
+    if (!logo || !('IntersectionObserver' in window)) return undefined
+
+    const observer = new IntersectionObserver(
+      ([entry]) => setHeroLogoVisible(entry.isIntersecting),
+      { threshold: 0.15 }
+    )
+    observer.observe(logo)
+    return () => observer.disconnect()
+  }, [])
 
   return (
     <div className="text-white">
@@ -136,7 +154,7 @@ export default function Home({ setPage, onAccount, account }) {
         </div>
 
         {/* RIGHT: LOGO SIZED TO BALANCE THE TEXT */}
-        <div className="order-1 flex items-center justify-center md:order-2">
+        <div ref={heroLogoRef} className={`tapik-hero-logo order-1 flex items-center justify-center md:order-2 ${heroLogoVisible ? 'is-in-view' : ''}`}>
           <img
             src={tapikLogo}
             alt="TAPik logo"
@@ -220,10 +238,22 @@ export default function Home({ setPage, onAccount, account }) {
       <h2 className="tapik-section-title">Connect with Us</h2>
 
       <div className="tapik-contact-list">
-        <span>www.tapikco.com</span>
-        <span>tapikcorp@gmail.com</span>
-        <span>@tapik.official</span>
-        <span>TAPik Company</span>
+        <a className="tapik-contact-card" href="https://www.tapikco.com" target="_blank" rel="noreferrer">
+          <img src={websiteLogo} alt="" />
+          <span>www.tapikco.com</span>
+        </a>
+        <a className="tapik-contact-card" href="https://www.facebook.com/TAPikCompany" target="_blank" rel="noreferrer">
+          <img src={facebookLogo} alt="" />
+          <span>TAPik Company</span>
+        </a>
+        <a className="tapik-contact-card" href="mailto:tapikcorp@gmail.com">
+          <img src={emailLogo} alt="" />
+          <span>tapikcorp@gmail.com</span>
+        </a>
+        <a className="tapik-contact-card" href="https://www.instagram.com/tapik.official/" target="_blank" rel="noreferrer">
+          <img src={instagramLogo} alt="" />
+          <span>@tapik.official</span>
+        </a>
       </div>
     </div>
   </Reveal>
