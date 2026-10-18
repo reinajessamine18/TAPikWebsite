@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import tapikLogo from '../assets/TAPik-logo.png'
 
 function Reveal({ children, delay = 0, className = '' }) {
@@ -34,7 +34,7 @@ function Reveal({ children, delay = 0, className = '' }) {
   )
 }
 
-export default function Home({ setPage }) {
+export default function Home({ setPage, onAccount, account }) {
   return (
     <div className="text-white">
       {/* HERO SECTION */}
@@ -184,6 +184,16 @@ export default function Home({ setPage }) {
       </div>
     </div>
   </Reveal>
+</section>
+
+<section className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-4 px-4 py-10 text-white">
+  <div>
+    <h2 className="text-2xl font-black">Ready to make it yours?</h2>
+    <p className="mt-1 text-blue-100">{account ? `Signed in as ${account.email}` : 'Sign in to keep your cart and orders together.'}</p>
+  </div>
+  <button type="button" onClick={account ? () => setPage('customize') : onAccount} className="rounded-lg bg-yellow-400 px-5 py-3 font-bold text-slate-950 transition hover:bg-yellow-300">
+    {account ? 'Start customizing' : 'Log in or sign up'}
+  </button>
 </section>
     </div>
   )

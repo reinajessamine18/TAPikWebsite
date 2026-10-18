@@ -1,14 +1,17 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { estimateShipping, SHIPPING_BRACKETS } from '../lib/pricing'
 import { saveOrders, loadOrders, newId } from '../lib/storage'
+import { api } from '../services/api'
 
 const PROVINCES = ['Metro Manila', 'Cavite', 'Laguna', 'Bulacan', 'Rizal', 'Pampanga', 'Batangas', 'Quezon']
 
-export default function Checkout({ cart, setCart, setPage }) {
+export default function Checkout({ cart, setCart, setPage, account }) {
   const [form, setForm] = useState({
-    name: '', email: '', phone: '', province: 'Metro Manila', city: '', barangay: '', street: '', landmark: '', instructions: '',
+    name: account?.name || '', email: account?.email || '', phone: '', province: 'Metro Manila', city: '', barangay: '', street: '', landmark: '', instructions: '',
   })
   const [success, setSuccess] = useState(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const weight = cart.reduce((s, i) => s + (i.weightGrams || 50) * i.qty, 0)
@@ -17,8 +20,9 @@ export default function Checkout({ cart, setCart, setPage }) {
 
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault()
+    if (submitting) return
     if (!form.name || !form.phone || !form.street || !form.city) {
       alert('Please fill in the required delivery details.')
       return
@@ -29,6 +33,7 @@ export default function Checkout({ cart, setCart, setPage }) {
       id: orderId,
       date: new Date().toISOString(),
       customer: { ...form },
+      customerId: account.id,
       items: cart,
       subtotal,
       shipping,
@@ -37,10 +42,27 @@ export default function Checkout({ cart, setCart, setPage }) {
       trackingNumber,
       simulated: true,
     }
+    setSubmitting(true)
+    setSubmitError('')
+    if (api.isConfigured()) {
+      try {
+        const result = await api.createOrder(order)
+        if (!result.ok || !result.orderId) {
+          throw new Error(result.error || 'Apps Script did not confirm that the order was saved.')
+        }
+        order.id = result.orderId
+        order.savedToAppsScript = true
+      } catch (error) {
+        setSubmitError(`The order could not be saved to the order database. Your cart is unchanged. ${error.message}`)
+        setSubmitting(false)
+        return
+      }
+    }
     const orders = [order, ...loadOrders()]
     saveOrders(orders)
     setCart([])
     setSuccess(order)
+    setSubmitting(false)
   }
 
   if (success) {
@@ -49,7 +71,7 @@ export default function Checkout({ cart, setCart, setPage }) {
         <div className="bg-white/10 rounded-3xl shadow-xl p-8 max-w-lg text-center backdrop-blur border border-white/20">
           <div className="text-3xl mb-3 text-green-300">OK</div>
           <h2 className="text-2xl font-bold">Order placed!</h2>
-          <p className="text-blue-100 mt-2">Thank you, {success.customer.name}. Your order has been saved.</p>
+          <p className="text-blue-100 mt-2">Thank you, {success.customer.name}. {success.savedToAppsScript ? 'Your order was saved to the order database.' : 'Your order was saved in this browser.'}</p>
           <div className="mt-4 text-left bg-white/5 rounded-xl p-4 text-sm space-y-1">
             <div><strong>Order ID:</strong> {success.id}</div>
             <div><strong>Total:</strong> PHP {success.total}</div>
@@ -82,6 +104,7 @@ export default function Checkout({ cart, setCart, setPage }) {
       <div className="max-w-5xl mx-auto px-4 py-10 grid md:grid-cols-2 gap-6">
         <form onSubmit={submit} className="bg-white/10 rounded-2xl shadow p-6 space-y-3 backdrop-blur border border-white/20">
           <h2 className="text-2xl font-bold mb-2">Delivery details</h2>
+          {submitError && <p role="alert" className="rounded-lg border border-rose-300/40 bg-rose-950/40 p-3 text-sm text-rose-100">{submitError}</p>}
           <input required placeholder="Full name *" value={form.name} onChange={(e) => update('name', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
           <input placeholder="Email" value={form.email} onChange={(e) => update('email', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
           <input required placeholder="Phone number *" value={form.phone} onChange={(e) => update('phone', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
@@ -97,7 +120,7 @@ export default function Checkout({ cart, setCart, setPage }) {
           <p className="text-xs text-blue-200">
             Shipping fee is estimated using simulated J&T brackets: {SHIPPING_BRACKETS.map((b) => `<=${b.maxKg}kg PHP ${b.fee}`).join(', ')}.
           </p>
-          <button type="submit" className="w-full bg-yellow-400 text-blue-900 font-bold py-3 rounded-full">Place order</button>
+          <button type="submit" disabled={submitting} className="w-full bg-yellow-400 text-blue-900 font-bold py-3 rounded-full disabled:opacity-60">{submitting ? 'Saving order...' : 'Place order'}</button>
         </form>
 
         <div className="bg-white/10 rounded-2xl shadow p-6 h-fit backdrop-blur border border-white/20">

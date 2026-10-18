@@ -1,17 +1,8 @@
-import React, { useEffect, useState } from 'react'
-import { loadOrders, saveOrders } from '../lib/storage'
+import { useState } from 'react'
+import { loadOrders } from '../lib/storage'
 
-const STATUSES = ['Processing', 'Packed', 'Shipped', 'Delivered']
-
-export default function Orders() {
-  const [orders, setOrders] = useState([])
-  useEffect(() => { setOrders(loadOrders()) }, [])
-
-  const updateStatus = (id, status) => {
-    const next = orders.map((o) => (o.id === id ? { ...o, status } : o))
-    setOrders(next)
-    saveOrders(next)
-  }
+export default function Orders({ account }) {
+  const [orders] = useState(() => loadOrders().filter((order) => order.customerId === account.id))
 
   if (!orders.length) {
     return (
@@ -44,17 +35,6 @@ export default function Orders() {
               <div><strong>Customer:</strong> {o.customer.name} - {o.customer.phone}</div>
               <div><strong>Deliver to:</strong> {o.customer.street}, {o.customer.barangay}, {o.customer.city}, {o.customer.province}</div>
               <div><strong>Simulated J&T tracking:</strong> {o.trackingNumber} {o.simulated && '(demo)'}</div>
-            </div>
-            <div className="mt-3 flex gap-2 flex-wrap">
-              {STATUSES.map((s) => (
-                <button
-                  key={s}
-                  onClick={() => updateStatus(o.id, s)}
-                  className={`text-xs px-3 py-1 rounded-full border ${o.status === s ? 'bg-yellow-400 text-blue-900 border-yellow-400' : 'border-white/30 text-white'}`}
-                >
-                  {s}
-                </button>
-              ))}
             </div>
           </div>
         ))}

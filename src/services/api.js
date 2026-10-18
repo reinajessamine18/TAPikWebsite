@@ -14,7 +14,10 @@ async function call(action, payload, method = 'GET') {
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify({ action, data: payload }),
   })
-  return res.json()
+  if (!res.ok) throw new Error(`Apps Script request failed (${res.status})`)
+  const result = await res.json()
+  if (!result || typeof result !== 'object') throw new Error('Apps Script returned an invalid response')
+  return result
 }
 
 export const api = {
@@ -22,6 +25,10 @@ export const api = {
   getProducts: () => call('getProducts'),
   getShippingRates: () => call('getShippingRates'),
   getOrders: () => call('getOrders'),
+  getAdminData: () => call('getAdminData'),
+  testConnection: () => call('ping'),
   createOrder: (data) => call('createOrder', data, 'POST'),
   updateOrderStatus: (data) => call('updateOrderStatus', data, 'POST'),
+  saveProduct: (data) => call('saveProduct', data, 'POST'),
+  deleteProduct: (data) => call('deleteProduct', data, 'POST'),
 }

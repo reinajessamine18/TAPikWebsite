@@ -86,6 +86,8 @@ textarea:focus-visible {
   position: relative;
   z-index: 40;
   width: 100%;
+  min-width: 0;
+  overflow: hidden;
   background: #4f94b2;
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 7px 15px rgba(30, 72, 88, 0.28);
@@ -93,14 +95,22 @@ textarea:focus-visible {
 
 .tapik-navbar-inner {
   width: 100%;
+  min-width: 0;
   max-width: 1440px;
   min-height: 76px;
   margin: 0 auto;
   padding: 8px clamp(16px, 5.5vw, 80px);
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tapik-navbar-inner::-webkit-scrollbar {
+  display: none;
 }
 
 .tapik-brand {
@@ -157,8 +167,64 @@ textarea:focus-visible {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 6px;
+}
+
+.tapik-auth-actions {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+}
+
+.tapik-auth-button {
+  flex: 0 0 auto;
+  padding: 8px 12px;
+  border: 1px solid #ffd35b;
+  border-radius: 8px;
+  color: #173746;
+  background: #ffd35b;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+  transition: background-color 160ms ease, transform 160ms ease;
+}
+
+.tapik-auth-button:hover {
+  background: #ffe18c;
+  transform: translateY(-1px);
+}
+
+.tapik-admin-navbar {
+  position: relative;
+  z-index: 40;
+  display: flex;
+  min-height: 76px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px clamp(16px, 5.5vw, 80px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+  background: #4f94b2;
+  color: white;
+}
+
+.tapik-admin-navbar h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.tapik-admin-navbar button {
+  flex: 0 0 auto;
+  border: 1px solid #ffd35b;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #173746;
+  background: #ffd35b;
+  font-weight: 900;
 }
 
 .tapik-nav-link {
@@ -219,19 +285,20 @@ textarea:focus-visible {
   }
 
   .tapik-navbar-inner {
-    flex-direction: column;
-    align-items: stretch;
+    flex-direction: row;
+    align-items: center;
     gap: 8px;
-    padding: 10px 12px;
+    padding: 8px 10px;
   }
 
   .tapik-brand {
-    justify-content: center;
-    gap: 10px;
+    justify-content: flex-start;
+    gap: 6px;
   }
 
   .tapik-brand-logo {
-    height: 44px;
+    width: 76px;
+    height: 32px;
   }
 
   .tapik-brand-tagline {
@@ -240,13 +307,31 @@ textarea:focus-visible {
   }
 
   .tapik-navigation {
-    justify-content: center;
-    gap: 3px;
+    justify-content: flex-start;
+    gap: 0;
   }
 
   .tapik-nav-link {
-    padding: 8px 10px;
-    font-size: 12px;
+    padding: 6px 5px;
+    font-size: 11px;
+  }
+
+  .tapik-auth-actions {
+    gap: 4px;
+  }
+
+  .tapik-auth-button {
+    padding: 6px 7px;
+    font-size: 10px;
+  }
+
+  .tapik-admin-navbar {
+    min-height: 60px;
+    padding: 8px 12px;
+  }
+
+  .tapik-admin-navbar h1 {
+    font-size: 17px;
   }
 }
 

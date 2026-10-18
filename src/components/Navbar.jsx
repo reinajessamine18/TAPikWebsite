@@ -1,4 +1,3 @@
-import React from 'react'
 import tagline from '../assets/tapikMotto.png'
 
 const PAGES = [
@@ -8,7 +7,7 @@ const PAGES = [
   { id: 'orders', label: 'Orders' },
 ]
 
-export default function Navbar({ page, setPage, cartCount = 0 }) {
+export default function Navbar({ page, setPage, cartCount = 0, account, onSignIn, onSignUp, onSignOut }) {
   return (
     <header className="tapik-navbar">
       <div className="tapik-navbar-inner">
@@ -53,6 +52,16 @@ export default function Navbar({ page, setPage, cartCount = 0 }) {
             </button>
           ))}
         </nav>
+        <div className="tapik-auth-actions">
+          {account ? (
+            <button type="button" onClick={onSignOut} className="tapik-auth-button">Log out</button>
+          ) : (
+            <>
+              <button type="button" onClick={onSignIn} className="tapik-auth-button">Log in</button>
+              <button type="button" onClick={onSignUp} className="tapik-auth-button">Sign up</button>
+            </>
+          )}
+        </div>
       </div>
     </header>
   )
