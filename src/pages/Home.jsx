@@ -43,6 +43,7 @@ export default function Home({ setPage, onAccount, account }) {
       .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
     : [])
   const latestOrder = orders[0]
+  const latestOrderIsShipped = ['Shipped', 'Delivered'].includes(displayOrderStatus(latestOrder?.status))
   const latestItemCount = (latestOrder?.items || []).reduce(
     (count, item) => count + (Number(item.qty) || 1),
     0
@@ -60,6 +61,9 @@ export default function Home({ setPage, onAccount, account }) {
                   <p className="text-xs font-bold uppercase tracking-[0.16em] text-yellow-300">Order summary</p>
                   <h2 className="mt-1 text-xl font-black">Latest order</h2>
                   <p className="mt-1 text-sm text-blue-100">{latestOrder.id} · {new Date(latestOrder.date).toLocaleDateString()}</p>
+                  {latestOrderIsShipped && latestOrder.trackingNumber && (
+                    <p className="mt-1 text-sm text-blue-100"><strong>Tracking ID:</strong> {latestOrder.trackingNumber}</p>
+                  )}
                 </div>
                 <span className={`tapik-status-badge rounded-lg px-3 py-2 text-sm ${orderStatusColor(latestOrder.status)}`}>{displayOrderStatus(latestOrder.status)}</span>
               </div>

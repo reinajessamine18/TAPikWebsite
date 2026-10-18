@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { calculateShippingFee, SHIPPING_BRACKETS } from '../lib/pricing'
 import { saveOrders, loadOrders, loadDeliveryDetails, saveDeliveryDetails, newId } from '../lib/storage'
-import { api } from '../services/api'
+import { api, downloadReceipt } from '../services/api'
 
 const PROVINCES = ['Metro Manila', 'Cavite', 'Laguna', 'Bulacan', 'Rizal', 'Pampanga', 'Batangas', 'Quezon']
 
@@ -15,6 +15,7 @@ export default function Checkout({ cart, setCart, setPage, account }) {
   const [success, setSuccess] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
+  const [receiptError, setReceiptError] = useState('')
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const weight = cart.reduce((s, i) => s + (i.weightGrams || 50) * i.qty, 0)
@@ -26,6 +27,15 @@ export default function Checkout({ cart, setCart, setPage, account }) {
     setForm(next)
     saveDeliveryDetails(account.id, next)
     setSavedDetails(next)
+  }
+
+  const handleReceiptDownload = async () => {
+    try {
+      setReceiptError('')
+      await downloadReceipt(success.id)
+    } catch (error) {
+      setReceiptError(`Receipt download failed: ${error.message}`)
+    }
   }
 
   const submit = async (e) => {
@@ -52,10 +62,15 @@ export default function Checkout({ cart, setCart, setPage, account }) {
     if (api.isConfigured()) {
       try {
         const result = await api.createOrder(order)
-        if (!result.ok || !result.orderId) {
-          throw new Error(result.error || 'Apps Script did not confirm that the order was saved.')
+        if (!result.ok || !result.orderId || !result.receiptURL || !result.receiptNumber) {
+          throw new Error(result.error || 'Apps Script did not confirm that the order and downloadable receipt were saved.')
         }
         order.id = result.orderId
+        order.trackingNumber = result.trackingNumber
+        order.courier = 'J&T Express'
+        order.isSimulated = true
+        order.receiptNumber = result.receiptNumber
+        order.receiptURL = result.receiptURL
         order.savedToAppsScript = true
       } catch (error) {
         setSubmitError(`The order could not be saved to the order database. Your cart is unchanged. ${error.message}`)
@@ -74,14 +89,23 @@ export default function Checkout({ cart, setCart, setPage, account }) {
     return (
       <div className="min-h-screen text-white flex items-center justify-center px-4">
         <div className="tapik-surface rounded-3xl border border-white/25 p-8 max-w-lg text-center">
-          <div className="text-3xl mb-3 text-green-300">OK</div>
+          <div className="text-3xl mb-3 text-green-300">Receipt ready</div>
           <h2 className="text-2xl font-bold">Your order is being prepared</h2>
           <p className="text-blue-100 mt-2">Thank you, {success.customer.name}. We have received your order.</p>
           <div className="tapik-surface mt-4 rounded-xl border border-white/25 p-4 text-left text-sm space-y-1">
             <div><strong>Order ID:</strong> {success.id}</div>
             <div><strong>Total:</strong> PHP {success.total}</div>
             <div><strong>Status:</strong> {success.status}</div>
+            {success.receiptNumber && <div><strong>Receipt No.:</strong> {success.receiptNumber}</div>}
           </div>
+          {success.receiptURL ? (
+            <button type="button" onClick={handleReceiptDownload} className="mt-5 inline-block rounded-full bg-white px-5 py-2 font-bold text-blue-900">
+              Download PDF receipt
+            </button>
+          ) : (
+            <p className="mt-4 text-sm text-blue-100">Connect the order database to generate and store a downloadable receipt.</p>
+          )}
+          {receiptError && <p role="alert" className="mt-3 text-sm text-rose-100">{receiptError}</p>}
           <div className="mt-5 flex gap-3 justify-center">
             <button onClick={() => setPage('orders')} className="bg-yellow-400 text-blue-900 font-bold px-5 py-2 rounded-full">View orders</button>
             <button onClick={() => setPage('home')} className="border border-yellow-400 text-yellow-400 font-bold px-5 py-2 rounded-full">Home</button>

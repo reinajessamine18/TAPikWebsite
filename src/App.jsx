@@ -13,15 +13,15 @@ import bg from './assets/TAPikbg.png'
 
 export default function App() {
   const [page, setPage] = useState('home')
-  const [cart, setCartState] = useState(loadCart)
   const [account, setAccount] = useState(loadSession)
+  const [cart, setCartState] = useState(() => loadSession() ? loadCart() : [])
   const [accountMode, setAccountMode] = useState('login')
   const [showAccountPrompt, setShowAccountPrompt] = useState(false)
   const [pendingItem, setPendingItem] = useState(null)
 
   useEffect(() => {
-    saveCart(cart)
-  }, [cart])
+    saveCart(account ? cart : [])
+  }, [account, cart])
 
   const setCart = (updater) => {
     setCartState((prev) =>
@@ -60,6 +60,8 @@ export default function App() {
 
   const signOut = () => {
     clearSession()
+    setCartState([])
+    saveCart([])
     setAccount(null)
     setPage('home')
   }
@@ -119,7 +121,7 @@ export default function App() {
         <Navbar
           page={page}
           setPage={setPage}
-          cartCount={cartCount}
+          cartCount={account ? cartCount : 0}
           account={account}
           onSignIn={() => { setAccountMode('login'); setPage('account') }}
           onSignUp={() => { setAccountMode('register'); setPage('account') }}

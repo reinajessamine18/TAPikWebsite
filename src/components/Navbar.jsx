@@ -44,7 +44,7 @@ export default function Navbar({ page, setPage, cartCount = 0, account, onSignIn
             >
               {item.label}
 
-              {item.id === 'cart' && cartCount > 0 && (
+              {item.id === 'cart' && account && cartCount > 0 && (
                 <span className="tapik-cart-count">
                   {cartCount}
                 </span>

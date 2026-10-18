@@ -1,12 +1,66 @@
 import { useEffect, useState } from 'react'
 import { loadOrders, loadProducts, saveOrders, saveProducts } from '../lib/storage'
 import { SAMPLE_PRODUCTS } from '../data/products'
-import { api } from '../services/api'
+import { api, downloadReceipt } from '../services/api'
 import { displayOrderStatus, orderStatusColor, ORDER_STATUSES } from '../lib/orderStatus'
 
 const TABS = ['Dashboard', 'Orders']
 const STATUSES = ORDER_STATUSES
 const emptyProduct = { name: '', description: '', price: '', stock: '', imageUrl: '', productLink: '' }
+
+function driveImageUrl(image, format = 'preview') {
+  const value = String(image || '')
+  const fileId = value.match(/\/file\/d\/([^/?]+)/)?.[1] || value.match(/[?&]id=([^&]+)/)?.[1]
+  if (!fileId) return value
+  const encodedFileId = encodeURIComponent(fileId)
+  if (format === 'download') return `https://drive.google.com/uc?export=download&id=${encodedFileId}`
+  return `https://drive.google.com/open?id=${encodedFileId}`
+}
+
+function CustomerArtwork({ image }) {
+  const [loadedImage, setLoadedImage] = useState(null)
+  const [failedImage, setFailedImage] = useState(null)
+  const value = String(image || '')
+  const fileId = value.match(/\/file\/d\/([^/?]+)/)?.[1] || value.match(/[?&]id=([^&]+)/)?.[1]
+
+  useEffect(() => {
+    let active = true
+    if (!fileId) return () => { active = false }
+
+    api.getDesignImage({ fileId })
+      .then((result) => {
+        if (!result.ok || !result.data) {
+          throw new Error(result.error || 'Image preview is unavailable')
+        }
+        if (active) setLoadedImage({
+          image,
+          source: `data:${result.mimeType || 'image/jpeg'};base64,${result.data}`,
+        })
+      })
+      .catch((loadError) => {
+        if (active) setFailedImage({ image, message: loadError.message })
+      })
+
+    return () => { active = false }
+  }, [fileId, image])
+
+  const source = fileId
+    ? loadedImage?.image === image ? loadedImage.source : ''
+    : value
+  const error = failedImage?.image === image ? failedImage.message : ''
+  if (error) {
+    return <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded bg-white/10 p-2 text-center text-xs text-blue-200">Preview unavailable</div>
+  }
+  if (!source) {
+    return <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded bg-white/10 text-xs text-blue-200">Loading photo…</div>
+  }
+
+  return (
+    <a href={driveImageUrl(image, 'original')} target="_blank" rel="noreferrer" aria-label="View original customer artwork" className="shrink-0">
+      <img src={source} alt="Customer-uploaded artwork" className="h-28 w-28 rounded bg-white object-contain" />
+    </a>
+  )
+}
 
 function productFromSheet(row) {
   return {
@@ -182,10 +236,26 @@ export default function Admin() {
   const recentOrders = [...orders].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 5)
   const filteredOrders = orders.filter((order) => {
     const query = orderSearch.trim().toLowerCase()
-    const matchesQuery = !query || [order.id, order.customer?.name, order.customer?.email, order.customer?.phone]
+    const searchableValues = [
+      order.id,
+      order.customer?.name,
+      order.customer?.email,
+      order.customer?.phone,
+      ...(order.items || []).flatMap((item) => [item.shape, item.name, item.chain, item.nfcLink]),
+    ]
+    const matchesQuery = !query || searchableValues
       .some((value) => String(value || '').toLowerCase().includes(query))
     return matchesQuery && (statusFilter === 'All statuses' || displayOrderStatus(order.status) === statusFilter)
   }).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+
+  const handleReceiptDownload = async (order) => {
+    try {
+      await downloadReceipt(order.id)
+      setNotice(`Receipt ${order.receiptNumber || ''} downloaded.`)
+    } catch (error) {
+      setNotice(`Receipt download failed for ${order.id}: ${error.message}`)
+    }
+  }
 
   return (
     <section className="min-h-[calc(100vh-76px)] text-white">
@@ -280,16 +350,24 @@ export default function Admin() {
               </div>
               {filteredOrders.length === 0 ? <p className="py-10 text-center text-blue-200">{orders.length ? 'No orders match these filters.' : 'No orders have been placed yet.'}</p> : (
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[850px] text-left text-sm">
-                    <thead className="border-b border-white/15 text-xs uppercase text-blue-200"><tr><th className="px-3 py-3">Order</th><th className="px-3 py-3">Customer</th><th className="px-3 py-3">Date</th><th className="px-3 py-3">Items</th><th className="px-3 py-3">Total</th><th className="px-3 py-3">Status</th></tr></thead>
+                  <table className="w-full min-w-[1260px] table-fixed text-left text-sm">
+                    <colgroup>
+                      <col className="w-[280px]" />
+                      <col className="w-[130px]" />
+                      <col className="w-[400px]" />
+                      <col className="w-[150px]" />
+                      <col className="w-[130px]" />
+                      <col className="w-[170px]" />
+                    </colgroup>
+                    <thead className="border-b border-white/15 text-xs uppercase text-blue-200"><tr><th className="px-4 py-3">Order / customer</th><th className="px-4 py-3">Date</th><th className="px-4 py-3">Items</th><th className="px-4 py-3">Receipt</th><th className="px-4 py-3">Total</th><th className="px-4 py-3">Status</th></tr></thead>
                     <tbody>{filteredOrders.map((order) => (
                       <tr key={order.id} className="border-b border-white/10 align-top last:border-0">
-                        <td className="px-3 py-4 font-bold">{order.id}<p className="mt-1 font-normal text-blue-200">Tracking: {order.trackingNumber || 'Not assigned'}</p></td>
-                        <td className="px-3 py-4">{order.customer?.name || 'Customer'}<p className="text-xs text-blue-200">{order.customer?.email || order.customer?.phone || ''}</p><p className="mt-1 max-w-[220px] text-xs text-blue-200">{order.customer?.address || [order.customer?.street, order.customer?.barangay, order.customer?.city, order.customer?.province].filter(Boolean).join(', ')}</p></td>
-                        <td className="px-3 py-4">{order.date ? new Date(order.date).toLocaleDateString() : '—'}</td>
-                        <td className="px-3 py-4"><details className="max-w-xs"><summary className="cursor-pointer text-yellow-200">{(order.items || []).length} item(s)</summary><div className="mt-2 space-y-2">{(order.items || []).map((item, index) => <div key={item.id || index} className="tapik-surface flex gap-2 rounded-lg border border-white/25 p-2">{item.image && <img src={item.image} alt="Customer design" className="h-12 w-12 rounded bg-white object-contain" />}<div className="min-w-0"><p className="font-semibold">{item.shape || item.name || 'Custom keychain'} · {item.chain || 'finish not specified'}</p><p className="text-xs text-blue-100">Qty {item.qty} · PHP {item.price}</p>{item.nfcLink && <a href={item.nfcLink} target="_blank" rel="noreferrer" className="block max-w-[180px] truncate text-xs text-yellow-200 underline">{item.nfcLink}</a>}</div></div>)}</div></details></td>
-                        <td className="px-3 py-4 font-bold">PHP {Number(order.total || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-4"><select value={displayOrderStatus(order.status)} onChange={(event) => updateOrderStatus(order, event.target.value)} aria-label={`Status for ${order.id}`} className={`tapik-status-select ${orderStatusColor(order.status)}`}>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select></td>
+                        <td className="px-4 py-4"><p className="break-words font-bold text-white">{order.id}</p><p className="mt-2 font-semibold">{order.customer?.name || 'Customer'}</p><p className="break-words text-xs text-blue-200">{order.customer?.email || order.customer?.phone || ''}</p><p className="mt-1 break-words text-xs text-blue-200">{order.customer?.address || [order.customer?.street, order.customer?.barangay, order.customer?.city, order.customer?.province].filter(Boolean).join(', ')}</p><p className="mt-2 text-xs text-blue-100">{order.courier || 'J&T Express'} · {order.isSimulated ? 'Simulated' : 'Live'} · Tracking: {order.trackingNumber || 'Not assigned'}</p></td>
+                        <td className="px-4 py-4 whitespace-nowrap">{order.date ? new Date(order.date).toLocaleDateString() : '—'}</td>
+                        <td className="px-4 py-4"><details className="w-full"><summary className="cursor-pointer text-yellow-200">{(order.items || []).length} item(s)</summary><div className="mt-3 space-y-2">{(order.items || []).map((item, index) => <div key={item.id || index} className="tapik-surface flex min-w-0 gap-3 rounded-lg border border-white/25 p-2">{item.image ? <CustomerArtwork image={item.image} /> : <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded bg-white/10 px-2 text-center text-xs text-blue-200">No uploaded photo</div>}<div className="min-w-0"><p className="break-words font-semibold">{item.shape || item.name || 'Custom keychain'} · {item.chain || 'finish not specified'}</p><p className="text-xs text-blue-100">Qty {item.qty} · PHP {item.price}</p>{item.image && <div className="mt-1 flex flex-wrap gap-3 text-xs"><a href={driveImageUrl(item.image, 'original')} target="_blank" rel="noreferrer" className="text-yellow-200 underline">View original</a><a href={driveImageUrl(item.image, 'download')} target="_blank" rel="noreferrer" className="text-yellow-200 underline">Download</a></div>}{item.nfcLink && <a href={item.nfcLink} target="_blank" rel="noreferrer" className="mt-1 block max-w-full truncate text-xs text-yellow-200 underline">{item.nfcLink}</a>}</div></div>)}</div></details></td>
+                        <td className="px-4 py-4">{order.receiptURL ? <div className="min-w-0"><button type="button" onClick={() => handleReceiptDownload(order)} className="text-left text-yellow-200 underline">Download PDF</button><p className="mt-1 break-words text-xs font-normal text-blue-100">{order.receiptNumber}</p></div> : <span className="text-blue-200">Not available</span>}</td>
+                        <td className="px-4 py-4 whitespace-nowrap font-bold">PHP {Number(order.total || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
+                        <td className="px-4 py-4"><select value={displayOrderStatus(order.status)} onChange={(event) => updateOrderStatus(order, event.target.value)} aria-label={`Status for ${order.id}`} className={`tapik-status-select w-full ${orderStatusColor(order.status)}`}>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select></td>
                       </tr>
                     ))}</tbody>
                   </table>

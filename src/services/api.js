@@ -26,9 +26,29 @@ export const api = {
   getShippingRates: () => call('getShippingRates'),
   getOrders: () => call('getOrders'),
   getAdminData: () => call('getAdminData'),
+  getReceipt: (data) => call('getReceipt', data),
+  getDesignImage: (data) => call('getDesignImage', data),
   testConnection: () => call('ping'),
   createOrder: (data) => call('createOrder', data, 'POST'),
   updateOrderStatus: (data) => call('updateOrderStatus', data, 'POST'),
   saveProduct: (data) => call('saveProduct', data, 'POST'),
   deleteProduct: (data) => call('deleteProduct', data, 'POST'),
+}
+
+export async function downloadReceipt(orderId) {
+  const result = await api.getReceipt({ orderId })
+  if (!result.ok || !result.data) {
+    throw new Error(result.error || 'Apps Script did not return the receipt PDF.')
+  }
+
+  const bytes = Uint8Array.from(atob(result.data), (character) => character.charCodeAt(0))
+  const blob = new Blob([bytes], { type: result.mimeType || 'application/pdf' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = result.fileName || `${result.receiptNumber || orderId}.pdf`
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
 }

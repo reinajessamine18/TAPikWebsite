@@ -5,13 +5,13 @@
 Create a Google spreadsheet named `TAPik Database` with these tabs. Put each comma-separated header list in row 1 of the named tab, in the listed order:
 
 - `Products`: `ProductID, ProductName, Description, Category, Price, Stock, ImageURL, WeightGrams, IsActive, CreatedAt, UpdatedAt`
-- `Orders`: `OrderID, CustomerID, OrderDate, Subtotal, ShippingFee, TotalAmount, PaymentMethod, PaymentStatus, OrderStatus, ShippingAddressID, Notes`
+- `Orders`: `OrderID, CustomerID, OrderDate, Subtotal, ShippingFee, TotalAmount, PaymentMethod, PaymentStatus, OrderStatus, ShippingAddressID, Notes, ReceiptNumber, ReceiptURL`
 - `OrderItems`: `OrderItemID, OrderID, ProductID, Quantity, UnitPrice, Subtotal`
 - `Customers`: `CustomerID, CustomerName, Email, Phone`
 - `ShippingRates`: `RateID, DestinationProvince, DestinationCity, DestinationZIP, MinWeightGrams, MaxWeightGrams, ShippingFee, IsActive`
 - `Shipments`: `ShipmentID, OrderID, Courier, TrackingNumber, ShipmentStatus, RecipientName, RecipientPhone, DeliveryAddress, BookedAt, ShippedAt, DeliveredAt, TrackingURL, IsSimulated, Remarks`
 
-Keep these headers unchanged; the Apps Script reads and updates rows by header name for products and order statuses.
+Keep the listed core headers unchanged; the Apps Script reads and updates rows by header name. It automatically adds the optional `ReceiptNumber` and `ReceiptURL` columns to `Orders` if they are not present.
 
 ## 2. Add and deploy Apps Script
 
@@ -22,7 +22,11 @@ Keep these headers unchanged; the Apps Script reads and updates rows by header n
 
 After editing `appsScript/Code.gs`, deploy a new version of the web app and update the deployment if the URL changes. The Admin -> Apps Script tab can test the deployed endpoint and sync the order feed.
 
-Custom item artwork and NFC targets are stored as JSON in the order's `Notes` cell because the requested `OrderItems` schema has no image or link columns. Uploaded artwork files are saved in a Drive folder named `TAPik Customer Designs`; its URL and the NFC target are included in that order metadata. The current implementation grants anyone with the file link viewer access so the admin page can display it. Treat those image links as public.
+Custom item artwork and NFC targets are stored as JSON in the order's `Notes` cell because the requested `OrderItems` schema has no image or link columns. Uploaded artwork files are saved in a Drive folder named `TAPik Customer Designs`; a direct image URL and the NFC target are included in that order metadata. The admin order list shows the customer's uploaded artwork (not the keychain mockup) and provides links to view and download the original. The current implementation grants anyone with the file link viewer access so the admin page can display it. Treat those image links as public.
+
+All current shipments are simulated. Apps Script assigns each new shipment a simulated J&T Express tracking number in `JT-` followed by digits format, and replaces missing or incorrectly formatted numbers on existing simulated shipments when Admin data is loaded. These numbers are for demonstration only and are not valid with the real courier. They are stored in the matching `Shipments` row and shown read-only in Admin.
+
+Each new order also receives a numbered PDF order receipt/payment acknowledgment. Apps Script stores the PDF in the `TAPik Receipts` Drive folder and stores its receipt number and download URL in the `ReceiptNumber` and `ReceiptURL` columns on the `Orders` sheet. The script adds these two columns automatically if missing. Checkout, Orders, and Admin request the stored PDF through the Apps Script `getReceipt` action for download. Admin artwork previews are loaded through `getDesignImage`, which returns a thumbnail from the `TAPik Customer Designs` folder. These actions require the deployed script account to have Drive access and the latest script version to be deployed. This is an order receipt, not a BIR-registered tax invoice; the PDF does not represent payment as complete unless the saved payment status is `Paid`. Drive files are shared with anyone who has the link so customers can download them; links should be treated as public.
 
 ### Authorize uploaded-design storage
 
