@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import tapikLogo from '../assets/TAPik-logo.png'
+import { loadOrders } from '../lib/storage'
+import { displayOrderStatus, orderStatusColor } from '../lib/orderStatus'
 
 function Reveal({ children, delay = 0, className = '' }) {
   const ref = useRef(null)
@@ -35,8 +37,45 @@ function Reveal({ children, delay = 0, className = '' }) {
 }
 
 export default function Home({ setPage, onAccount, account }) {
+  const [orders] = useState(() => account?.role === 'customer'
+    ? loadOrders()
+      .filter((order) => order.customerId === account.id)
+      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+    : [])
+  const latestOrder = orders[0]
+  const latestItemCount = (latestOrder?.items || []).reduce(
+    (count, item) => count + (Number(item.qty) || 1),
+    0
+  )
+
   return (
     <div className="text-white">
+      {account?.role === 'customer' && (
+        <section className="mx-auto max-w-6xl px-4 pt-8">
+          <h1 className="text-3xl font-black">Hello, {account.name}</h1>
+          {latestOrder ? (
+            <section className="tapik-surface mt-5 rounded-xl border border-white/25 p-5 sm:p-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-yellow-300">Order summary</p>
+                  <h2 className="mt-1 text-xl font-black">Latest order</h2>
+                  <p className="mt-1 text-sm text-blue-100">{latestOrder.id} · {new Date(latestOrder.date).toLocaleDateString()}</p>
+                </div>
+                <span className={`tapik-status-badge rounded-lg px-3 py-2 text-sm ${orderStatusColor(latestOrder.status)}`}>{displayOrderStatus(latestOrder.status)}</span>
+              </div>
+              <div className="mt-5 grid gap-4 border-t border-white/15 pt-4 sm:grid-cols-3">
+                <div><p className="text-sm text-blue-200">Items</p><p className="mt-1 font-bold">{latestItemCount}</p></div>
+                <div><p className="text-sm text-blue-200">Order total</p><p className="mt-1 font-bold">PHP {Number(latestOrder.total || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</p></div>
+                <div><p className="text-sm text-blue-200">Orders placed</p><p className="mt-1 font-bold">{orders.length}</p></div>
+              </div>
+              <button type="button" onClick={() => setPage('orders')} className="mt-4 text-sm font-bold text-yellow-300 underline underline-offset-4">View all orders</button>
+            </section>
+          ) : (
+            <p className="mt-2 text-blue-100">No orders yet. Your order updates will appear here.</p>
+          )}
+        </section>
+      )}
+
       {/* HERO SECTION */}
       <section className="mx-auto grid min-h-[65vh] max-w-6xl grid-cols-1 items-center gap-8 px-4 py-14 md:grid-cols-2 md:gap-12 md:py-16">
 

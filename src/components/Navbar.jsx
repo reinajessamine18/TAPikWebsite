@@ -58,7 +58,7 @@ export default function Navbar({ page, setPage, cartCount = 0, account, onSignIn
           ) : (
             <>
               <button type="button" onClick={onSignIn} className="tapik-auth-button">Log in</button>
-              <button type="button" onClick={onSignUp} className="tapik-auth-button">Sign up</button>
+              <button type="button" onClick={onSignUp} className="tapik-auth-button tapik-auth-button-outline">Sign up</button>
             </>
           )}
         </div>

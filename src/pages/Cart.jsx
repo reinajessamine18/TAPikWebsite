@@ -1,7 +1,7 @@
 
 import React from 'react'
 import KeychainPreview from '../components/KeychainPreview'
-import { estimateShipping } from '../lib/pricing'
+import { calculateShippingFee } from '../lib/pricing'
 import addButton from '../assets/addbutton.png'
 import minusButton from '../assets/minusbutton.png'
 
@@ -41,7 +41,7 @@ export default function Cart({ cart, setCart, setPage }) {
     0
   )
 
-  const shipping = cart.length ? estimateShipping(weight) : 0
+  const shipping = cart.length ? calculateShippingFee(weight) : 0
   const total = subtotal + shipping
   const totalItems = cart.reduce(
     (sum, item) => sum + (Number(item.qty) || 1),
@@ -171,7 +171,7 @@ export default function Cart({ cart, setCart, setPage }) {
               className="tapik-continue-button"
               onClick={() => setPage('customize')}
             >
-              ← Continue shopping
+              Continue shopping
             </button>
           </div>
 
@@ -202,13 +202,12 @@ export default function Cart({ cart, setCart, setPage }) {
               <h3>Delivery</h3>
 
               <div className="tapik-summary-line">
-                <span>Estimated shipping</span>
+                <span>Shipping fee</span>
                 <strong>{money(shipping)}</strong>
               </div>
 
               <p className="tapik-shipping-note">
-                Estimated package weight: {(weight / 1000).toFixed(2)} kg.
-                Final delivery charges may vary.
+                Package weight: {(weight / 1000).toFixed(2)} kg. Shipping fee is based on package weight.
               </p>
             </div>
 
@@ -223,11 +222,9 @@ export default function Cart({ cart, setCart, setPage }) {
               onClick={() => setPage('checkout')}
             >
               Proceed to Checkout
-              <span aria-hidden="true"> →</span>
             </button>
 
             <div className="tapik-checkout-note">
-              <span aria-hidden="true">✓</span>
               Review your delivery details at checkout.
             </div>
           </aside>

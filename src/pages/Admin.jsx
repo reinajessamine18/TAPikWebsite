@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { loadOrders, loadProducts, saveOrders, saveProducts } from '../lib/storage'
 import { SAMPLE_PRODUCTS } from '../data/products'
 import { api } from '../services/api'
+import { displayOrderStatus, orderStatusColor, ORDER_STATUSES } from '../lib/orderStatus'
 
-const TABS = ['Dashboard', 'Orders', 'Inventory', 'Apps Script']
-const STATUSES = ['Pending', 'Processing', 'Packed', 'Shipped', 'Delivered', 'Cancelled']
+const TABS = ['Dashboard', 'Orders']
+const STATUSES = ORDER_STATUSES
 const emptyProduct = { name: '', description: '', price: '', stock: '', imageUrl: '', productLink: '' }
 
 function productFromSheet(row) {
@@ -175,21 +176,21 @@ export default function Admin() {
     saveProducts(next)
   }
 
-  const countStatus = (status) => orders.filter((order) => order.status === status).length
-  const awaitingAction = orders.filter((order) => ['Pending', 'Processing'].includes(order.status || 'Processing')).length
+  const countStatus = (status) => orders.filter((order) => displayOrderStatus(order.status) === status).length
+  const awaitingAction = countStatus('Pending') + countStatus('Being prepared')
   const grossSales = orders.reduce((total, order) => total + (Number(order.total) || 0), 0)
   const recentOrders = [...orders].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 5)
   const filteredOrders = orders.filter((order) => {
     const query = orderSearch.trim().toLowerCase()
     const matchesQuery = !query || [order.id, order.customer?.name, order.customer?.email, order.customer?.phone]
       .some((value) => String(value || '').toLowerCase().includes(query))
-    return matchesQuery && (statusFilter === 'All statuses' || order.status === statusFilter)
+    return matchesQuery && (statusFilter === 'All statuses' || displayOrderStatus(order.status) === statusFilter)
   }).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
   return (
     <section className="min-h-[calc(100vh-76px)] text-white">
       <div className="mx-auto grid w-full max-w-[1600px] gap-5 px-4 py-6 sm:px-6 lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-7 lg:px-8 lg:py-8">
-        <aside className="h-fit rounded-xl border border-white/15 bg-slate-950/55 p-3 backdrop-blur lg:sticky lg:top-6">
+        <aside className="tapik-surface h-fit rounded-xl border border-white/25 p-3 lg:sticky lg:top-6">
           <p className="px-3 pb-3 pt-2 text-xs font-black uppercase tracking-[0.16em] text-blue-200">Workspace</p>
           <nav className="flex gap-2 overflow-x-auto lg:flex-col" aria-label="Admin navigation">
             {TABS.map((item) => (
@@ -214,18 +215,18 @@ export default function Admin() {
             <p className="text-sm text-blue-100">{new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
           </div>
 
-          {notice && <p role="status" className="mb-4 rounded-lg border border-white/20 bg-slate-950/50 px-4 py-3 text-sm text-blue-100">{notice}</p>}
+          {notice && <p role="status" className="tapik-surface mb-4 rounded-lg border border-white/25 px-4 py-3 text-sm">{notice}</p>}
 
           {tab === 'Dashboard' && (
             <div className="space-y-6">
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                 {[
                   { label: 'Total orders', value: orders.length, note: `${countStatus('Delivered')} delivered` },
-                  { label: 'Needs attention', value: awaitingAction, note: `${countStatus('Pending')} pending · ${countStatus('Processing')} processing` },
+                  { label: 'Needs attention', value: awaitingAction, note: `${countStatus('Pending')} pending · ${countStatus('Being prepared') + countStatus('Processing')} being prepared` },
                   { label: 'In transit', value: countStatus('Shipped'), note: `${countStatus('Packed')} packed and ready` },
                   { label: 'Gross sales', value: `PHP ${grossSales.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, note: 'Across all recorded orders' },
                 ].map((metric) => (
-                  <article key={metric.label} className="rounded-xl border border-white/15 bg-slate-950/55 p-4 backdrop-blur">
+                  <article key={metric.label} className="tapik-surface rounded-xl border border-white/25 p-4">
                     <p className="text-sm font-semibold text-blue-100">{metric.label}</p>
                     <p className="mt-3 text-2xl font-black text-white">{metric.value}</p>
                     <p className="mt-2 text-xs text-blue-200">{metric.note}</p>
@@ -234,7 +235,7 @@ export default function Admin() {
               </div>
 
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(260px,0.8fr)]">
-                <section className="rounded-xl border border-white/15 bg-slate-950/55 p-5 backdrop-blur">
+                <section className="tapik-surface rounded-xl border border-white/25 p-5">
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <div><h3 className="text-lg font-black">Recent orders</h3><p className="text-sm text-blue-200">Latest activity from your storefront</p></div>
                     <button type="button" onClick={() => setTab('Orders')} className="rounded-lg border border-white/20 px-3 py-2 text-sm font-bold hover:bg-white/10">All orders</button>
@@ -243,13 +244,13 @@ export default function Admin() {
                     <div className="overflow-x-auto">
                       <table className="w-full min-w-[560px] text-left text-sm">
                         <thead className="border-b border-white/15 text-xs uppercase text-blue-200"><tr><th className="py-3 pr-3">Order</th><th className="py-3 pr-3">Customer</th><th className="py-3 pr-3">Total</th><th className="py-3">Status</th></tr></thead>
-                        <tbody>{recentOrders.map((order) => <tr key={order.id} className="border-b border-white/10 last:border-0"><td className="py-3 pr-3 font-bold">{order.id}</td><td className="py-3 pr-3">{order.customer?.name || order.customer?.email || 'Customer'}</td><td className="py-3 pr-3">PHP {Number(order.total || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td><td className="py-3"><span className="rounded-md bg-white/10 px-2 py-1 text-xs font-bold">{order.status || 'Processing'}</span></td></tr>)}</tbody>
+                        <tbody>{recentOrders.map((order) => <tr key={order.id} className="border-b border-white/10 last:border-0"><td className="py-3 pr-3 font-bold">{order.id}</td><td className="py-3 pr-3">{order.customer?.name || order.customer?.email || 'Customer'}</td><td className="py-3 pr-3">PHP {Number(order.total || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td><td className="py-3"><span className={`tapik-status-badge rounded-md px-2 py-1 text-xs ${orderStatusColor(order.status)}`}>{displayOrderStatus(order.status)}</span></td></tr>)}</tbody>
                       </table>
                     </div>
                   )}
                 </section>
 
-                <section className="rounded-xl border border-white/15 bg-slate-950/55 p-5 backdrop-blur">
+                <section className="tapik-surface rounded-xl border border-white/25 p-5">
                   <h3 className="text-lg font-black">Order status</h3>
                   <p className="mb-4 text-sm text-blue-200">Current fulfillment breakdown</p>
                   <div className="space-y-3">
@@ -262,16 +263,13 @@ export default function Admin() {
                       </div>
                     })}
                   </div>
-                  <div className="mt-5 border-t border-white/15 pt-4 text-sm text-blue-100">
-                    <div className="flex justify-between"><span>Inventory items</span><strong>{products.length}</strong></div>
-                  </div>
                 </section>
               </div>
             </div>
           )}
 
           {tab === 'Orders' && (
-            <section className="rounded-xl border border-white/15 bg-slate-950/55 p-4 backdrop-blur sm:p-5">
+            <section className="tapik-surface rounded-xl border border-white/25 p-4 sm:p-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div><h3 className="text-lg font-black">Order management</h3><p className="text-sm text-blue-200">Search orders, inspect customizations, and update fulfillment.</p></div>
                       <div className="flex items-center gap-2"><span className="rounded-md bg-white/10 px-3 py-2 text-sm">{filteredOrders.length} orders</span><button type="button" onClick={() => refreshAdminData(true)} disabled={connectionStatus === 'checking'} className="rounded-lg border border-white/20 px-3 py-2 text-sm font-bold hover:bg-white/10 disabled:opacity-50">{connectionStatus === 'checking' ? 'Syncing...' : 'Refresh'}</button></div>
@@ -289,9 +287,9 @@ export default function Admin() {
                         <td className="px-3 py-4 font-bold">{order.id}<p className="mt-1 font-normal text-blue-200">Tracking: {order.trackingNumber || 'Not assigned'}</p></td>
                         <td className="px-3 py-4">{order.customer?.name || 'Customer'}<p className="text-xs text-blue-200">{order.customer?.email || order.customer?.phone || ''}</p><p className="mt-1 max-w-[220px] text-xs text-blue-200">{order.customer?.address || [order.customer?.street, order.customer?.barangay, order.customer?.city, order.customer?.province].filter(Boolean).join(', ')}</p></td>
                         <td className="px-3 py-4">{order.date ? new Date(order.date).toLocaleDateString() : '—'}</td>
-                        <td className="px-3 py-4"><details className="max-w-xs"><summary className="cursor-pointer text-yellow-200">{(order.items || []).length} item(s)</summary><div className="mt-2 space-y-2">{(order.items || []).map((item, index) => <div key={item.id || index} className="flex gap-2 rounded-lg border border-white/10 bg-white/5 p-2">{item.image && <img src={item.image} alt="Customer design" className="h-12 w-12 rounded bg-white object-contain" />}<div className="min-w-0"><p className="font-semibold">{item.shape || item.name || 'Custom keychain'} · {item.chain || 'finish not specified'}</p><p className="text-xs text-blue-200">Qty {item.qty} · PHP {item.price}</p>{item.nfcLink && <a href={item.nfcLink} target="_blank" rel="noreferrer" className="block max-w-[180px] truncate text-xs text-yellow-200 underline">{item.nfcLink}</a>}</div></div>)}</div></details></td>
+                        <td className="px-3 py-4"><details className="max-w-xs"><summary className="cursor-pointer text-yellow-200">{(order.items || []).length} item(s)</summary><div className="mt-2 space-y-2">{(order.items || []).map((item, index) => <div key={item.id || index} className="tapik-surface flex gap-2 rounded-lg border border-white/25 p-2">{item.image && <img src={item.image} alt="Customer design" className="h-12 w-12 rounded bg-white object-contain" />}<div className="min-w-0"><p className="font-semibold">{item.shape || item.name || 'Custom keychain'} · {item.chain || 'finish not specified'}</p><p className="text-xs text-blue-100">Qty {item.qty} · PHP {item.price}</p>{item.nfcLink && <a href={item.nfcLink} target="_blank" rel="noreferrer" className="block max-w-[180px] truncate text-xs text-yellow-200 underline">{item.nfcLink}</a>}</div></div>)}</div></details></td>
                         <td className="px-3 py-4 font-bold">PHP {Number(order.total || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
-                        <td className="px-3 py-4"><select value={order.status || 'Processing'} onChange={(event) => updateOrderStatus(order, event.target.value)} aria-label={`Status for ${order.id}`} className="rounded-lg border border-white/20 bg-slate-900 px-2 py-2 text-white">{STATUSES.map((status) => <option key={status}>{status}</option>)}</select></td>
+                        <td className="px-3 py-4"><select value={displayOrderStatus(order.status)} onChange={(event) => updateOrderStatus(order, event.target.value)} aria-label={`Status for ${order.id}`} className={`tapik-status-select ${orderStatusColor(order.status)}`}>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select></td>
                       </tr>
                     ))}</tbody>
                   </table>
@@ -304,7 +302,7 @@ export default function Admin() {
           <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(300px,0.8fr)]">
             <div className="space-y-3">
               {products.map((product) => (
-                <article key={product.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-white/20 bg-slate-950/55 p-4">
+                <article key={product.id} className="tapik-surface flex flex-wrap items-center justify-between gap-4 rounded-xl border border-white/25 p-4">
                   <div className="flex min-w-0 items-center gap-3">
                     {product.imageUrl || product.image ? <img src={product.imageUrl || product.image} alt="" className="h-14 w-14 rounded-md bg-white object-contain" /> : null}
                     <div className="min-w-0">
@@ -320,7 +318,7 @@ export default function Admin() {
                 </article>
               ))}
             </div>
-            <form onSubmit={saveProduct} className="h-fit space-y-3 rounded-xl border border-white/20 bg-slate-950/55 p-5">
+            <form onSubmit={saveProduct} className="tapik-surface h-fit space-y-3 rounded-xl border border-white/25 p-5">
               <h2 className="text-lg font-bold">{editingId ? 'Edit inventory item' : 'Add inventory item'}</h2>
               <input required placeholder="Product name" value={productForm.name} onChange={(event) => updateForm('name', event.target.value)} className="w-full rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-white placeholder:text-blue-200" />
               <textarea placeholder="Description" value={productForm.description} onChange={(event) => updateForm('description', event.target.value)} rows={3} className="w-full rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-white placeholder:text-blue-200" />
@@ -339,7 +337,7 @@ export default function Admin() {
         )}
 
           {tab === 'Apps Script' && (
-          <div className="max-w-3xl rounded-xl border border-white/20 bg-slate-950/55 p-5 backdrop-blur">
+          <div className="tapik-surface max-w-3xl rounded-xl border border-white/25 p-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-bold">Google Sheets connection</h2>
               <span className={`rounded-full px-3 py-1 text-sm font-bold ${connectionStatus === 'connected' ? 'bg-emerald-300/20 text-emerald-200' : connectionStatus === 'error' ? 'bg-rose-300/20 text-rose-100' : 'bg-amber-300/20 text-amber-100'}`}>

@@ -22,7 +22,7 @@ export default function Account({ onSuccess, onCancel, modal = false, initialMod
   }
 
   const form = (
-    <section className="w-full max-w-md rounded-2xl border border-white/20 bg-slate-950/80 p-6 text-white shadow-2xl backdrop-blur-xl sm:p-8">
+    <section className="tapik-surface w-full max-w-md rounded-2xl border border-white/25 p-6 sm:p-8">
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-300">TAPik account</p>

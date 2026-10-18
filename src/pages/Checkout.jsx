@@ -1,24 +1,32 @@
 import { useState } from 'react'
-import { estimateShipping, SHIPPING_BRACKETS } from '../lib/pricing'
-import { saveOrders, loadOrders, newId } from '../lib/storage'
+import { calculateShippingFee, SHIPPING_BRACKETS } from '../lib/pricing'
+import { saveOrders, loadOrders, loadDeliveryDetails, saveDeliveryDetails, newId } from '../lib/storage'
 import { api } from '../services/api'
 
 const PROVINCES = ['Metro Manila', 'Cavite', 'Laguna', 'Bulacan', 'Rizal', 'Pampanga', 'Batangas', 'Quezon']
 
 export default function Checkout({ cart, setCart, setPage, account }) {
-  const [form, setForm] = useState({
+  const [form, setForm] = useState(() => ({
     name: account?.name || '', email: account?.email || '', phone: '', province: 'Metro Manila', city: '', barangay: '', street: '', landmark: '', instructions: '',
-  })
+    ...loadDeliveryDetails(account?.id),
+  }))
+  const [savedDetails, setSavedDetails] = useState(() => loadDeliveryDetails(account?.id))
+  const [isEditingDetails, setIsEditingDetails] = useState(() => !loadDeliveryDetails(account?.id))
   const [success, setSuccess] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const weight = cart.reduce((s, i) => s + (i.weightGrams || 50) * i.qty, 0)
-  const shipping = cart.length ? estimateShipping(weight) : 0
+  const shipping = cart.length ? calculateShippingFee(weight) : 0
   const total = subtotal + shipping
 
-  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+  const update = (key, value) => {
+    const next = { ...form, [key]: value }
+    setForm(next)
+    saveDeliveryDetails(account.id, next)
+    setSavedDetails(next)
+  }
 
   const submit = async (e) => {
     e.preventDefault()
@@ -28,7 +36,6 @@ export default function Checkout({ cart, setCart, setPage, account }) {
       return
     }
     const orderId = newId('TAP')
-    const trackingNumber = `JT-${Math.floor(100000000 + Math.random() * 900000000)}`
     const order = {
       id: orderId,
       date: new Date().toISOString(),
@@ -38,9 +45,7 @@ export default function Checkout({ cart, setCart, setPage, account }) {
       subtotal,
       shipping,
       total,
-      status: 'Processing',
-      trackingNumber,
-      simulated: true,
+      status: 'Pending',
     }
     setSubmitting(true)
     setSubmitError('')
@@ -68,17 +73,15 @@ export default function Checkout({ cart, setCart, setPage, account }) {
   if (success) {
     return (
       <div className="min-h-screen text-white flex items-center justify-center px-4">
-        <div className="bg-white/10 rounded-3xl shadow-xl p-8 max-w-lg text-center backdrop-blur border border-white/20">
+        <div className="tapik-surface rounded-3xl border border-white/25 p-8 max-w-lg text-center">
           <div className="text-3xl mb-3 text-green-300">OK</div>
-          <h2 className="text-2xl font-bold">Order placed!</h2>
-          <p className="text-blue-100 mt-2">Thank you, {success.customer.name}. {success.savedToAppsScript ? 'Your order was saved to the order database.' : 'Your order was saved in this browser.'}</p>
-          <div className="mt-4 text-left bg-white/5 rounded-xl p-4 text-sm space-y-1">
+          <h2 className="text-2xl font-bold">Your order is being prepared</h2>
+          <p className="text-blue-100 mt-2">Thank you, {success.customer.name}. We have received your order.</p>
+          <div className="tapik-surface mt-4 rounded-xl border border-white/25 p-4 text-left text-sm space-y-1">
             <div><strong>Order ID:</strong> {success.id}</div>
             <div><strong>Total:</strong> PHP {success.total}</div>
-            <div><strong>Simulated J&T tracking:</strong> {success.trackingNumber}</div>
             <div><strong>Status:</strong> {success.status}</div>
           </div>
-          <p className="mt-3 text-xs text-blue-200">Tracking numbers are simulated for this group project.</p>
           <div className="mt-5 flex gap-3 justify-center">
             <button onClick={() => setPage('orders')} className="bg-yellow-400 text-blue-900 font-bold px-5 py-2 rounded-full">View orders</button>
             <button onClick={() => setPage('home')} className="border border-yellow-400 text-yellow-400 font-bold px-5 py-2 rounded-full">Home</button>
@@ -102,28 +105,52 @@ export default function Checkout({ cart, setCart, setPage, account }) {
   return (
     <div className="min-h-screen text-white">
       <div className="max-w-5xl mx-auto px-4 py-10 grid md:grid-cols-2 gap-6">
-        <form onSubmit={submit} className="bg-white/10 rounded-2xl shadow p-6 space-y-3 backdrop-blur border border-white/20">
-          <h2 className="text-2xl font-bold mb-2">Delivery details</h2>
+        <form onSubmit={submit} className="tapik-surface rounded-2xl border border-white/25 p-6 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-2xl font-bold">Delivery details</h2>
+            {savedDetails && (
+              <button
+                type="button"
+                onClick={() => setIsEditingDetails((editing) => !editing)}
+                className="rounded-lg border border-white/40 px-4 py-2 font-bold transition hover:bg-white/10"
+              >
+                {isEditingDetails ? 'Done' : 'Edit'}
+              </button>
+            )}
+          </div>
           {submitError && <p role="alert" className="rounded-lg border border-rose-300/40 bg-rose-950/40 p-3 text-sm text-rose-100">{submitError}</p>}
-          <input required placeholder="Full name *" value={form.name} onChange={(e) => update('name', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
-          <input placeholder="Email" value={form.email} onChange={(e) => update('email', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
-          <input required placeholder="Phone number *" value={form.phone} onChange={(e) => update('phone', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
-          <select value={form.province} onChange={(e) => update('province', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white">
-            {PROVINCES.map((p) => <option key={p} className="text-blue-900">{p}</option>)}
-          </select>
-          <input required placeholder="City / Municipality *" value={form.city} onChange={(e) => update('city', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
-          <input placeholder="Barangay" value={form.barangay} onChange={(e) => update('barangay', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
-          <input required placeholder="Street / house / building *" value={form.street} onChange={(e) => update('street', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
-          <input placeholder="Landmark (optional)" value={form.landmark} onChange={(e) => update('landmark', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
-          <textarea placeholder="Delivery instructions" value={form.instructions} onChange={(e) => update('instructions', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" rows={3} />
+          {savedDetails && !isEditingDetails ? (
+            <div className="grid gap-3 rounded-xl border border-white/25 bg-white/10 p-4 sm:grid-cols-2">
+              <p><strong>Name</strong><br />{savedDetails.name || 'Not entered'}</p>
+              <p><strong>Email</strong><br />{savedDetails.email || 'Not entered'}</p>
+              <p><strong>Phone</strong><br />{savedDetails.phone || 'Not entered'}</p>
+              <p><strong>Address</strong><br />{[savedDetails.street, savedDetails.barangay, savedDetails.city, savedDetails.province].filter(Boolean).join(', ') || 'Not entered'}</p>
+              {savedDetails.landmark && <p><strong>Landmark</strong><br />{savedDetails.landmark}</p>}
+              {savedDetails.instructions && <p><strong>Delivery instructions</strong><br />{savedDetails.instructions}</p>}
+            </div>
+          ) : (
+            <>
+              <input required placeholder="Full name *" value={form.name} onChange={(e) => update('name', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
+              <input placeholder="Email" value={form.email} onChange={(e) => update('email', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
+              <input required placeholder="Phone number *" value={form.phone} onChange={(e) => update('phone', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
+              <select value={form.province} onChange={(e) => update('province', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white">
+                {PROVINCES.map((province) => <option key={province} className="text-blue-900">{province}</option>)}
+              </select>
+              <input required placeholder="City / Municipality *" value={form.city} onChange={(e) => update('city', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
+              <input placeholder="Barangay" value={form.barangay} onChange={(e) => update('barangay', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
+              <input required placeholder="Street / house / building *" value={form.street} onChange={(e) => update('street', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
+              <input placeholder="Landmark (optional)" value={form.landmark} onChange={(e) => update('landmark', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
+              <textarea placeholder="Delivery instructions" value={form.instructions} onChange={(e) => update('instructions', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" rows={3} />
+            </>
+          )}
 
           <p className="text-xs text-blue-200">
-            Shipping fee is estimated using simulated J&T brackets: {SHIPPING_BRACKETS.map((b) => `<=${b.maxKg}kg PHP ${b.fee}`).join(', ')}.
+            Shipping fees are calculated by package weight: {SHIPPING_BRACKETS.map((b) => `up to ${b.maxKg}kg PHP ${b.fee}`).join(', ')}.
           </p>
           <button type="submit" disabled={submitting} className="w-full bg-yellow-400 text-blue-900 font-bold py-3 rounded-full disabled:opacity-60">{submitting ? 'Saving order...' : 'Place order'}</button>
         </form>
 
-        <div className="bg-white/10 rounded-2xl shadow p-6 h-fit backdrop-blur border border-white/20">
+        <div className="tapik-surface rounded-2xl border border-white/25 p-6 h-fit">
           <h3 className="font-bold text-lg mb-3">Order summary</h3>
           {cart.map((i) => (
             <div key={i.id} className="flex justify-between text-sm mb-1">

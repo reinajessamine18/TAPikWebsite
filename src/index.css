@@ -20,6 +20,7 @@
 
   --tapik-blue: #4f94b2;
   --tapik-panel: #65a6c2;
+  --tapik-container-bg: rgba(101, 166, 194, 0.96);
   --tapik-yellow: #ffc15b;
   --tapik-white: #fff;
   --tapik-text-shadow: 1px 2px 1px rgba(70, 70, 70, 0.65);
@@ -80,10 +81,83 @@ textarea:focus-visible {
   min-width: 0;
 }
 
+.tapik-surface {
+  background-color: var(--tapik-container-bg);
+  color: #fff;
+  box-shadow: 0 12px 28px rgba(25, 67, 83, 0.22);
+}
+
+.tapik-surface input:not([type='checkbox']),
+.tapik-surface textarea,
+.tapik-surface select {
+  border-color: rgba(255, 255, 255, 0.35);
+  background-color: rgba(49, 113, 142, 0.48);
+  color: #fff;
+}
+
+.tapik-surface input::placeholder,
+.tapik-surface textarea::placeholder {
+  color: rgba(255, 255, 255, 0.78);
+}
+
+.tapik-status-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 5px 10px;
+  font-size: 12px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.tapik-status-select {
+  max-width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-weight: 900;
+}
+
+.tapik-status-pending {
+  background-color: #ffd35b;
+  color: #443000;
+}
+
+.tapik-status-preparing {
+  background-color: #f5a66c;
+  color: #4c2307;
+}
+
+.tapik-status-packed {
+  background-color: #78b5dc;
+  color: #10384f;
+}
+
+.tapik-status-shipped {
+  background-color: #55bcca;
+  color: #073b43;
+}
+
+.tapik-status-delivered {
+  background-color: #75c98d;
+  color: #123d20;
+}
+
+.tapik-status-cancelled {
+  background-color: #ec7184;
+  color: #4d101a;
+}
+
+.tapik-status-default {
+  background-color: #d5e6eb;
+  color: #203b45;
+}
+
 /* Single integrated navigation */
 
 .tapik-navbar {
-  position: relative;
+  position: sticky;
+  top: 0;
   z-index: 40;
   width: 100%;
   min-width: 0;
@@ -104,13 +178,7 @@ textarea:focus-visible {
   flex-wrap: nowrap;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.tapik-navbar-inner::-webkit-scrollbar {
-  display: none;
+  gap: 12px;
 }
 
 .tapik-brand {
@@ -145,7 +213,7 @@ textarea:focus-visible {
   padding: 12px;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 16px;
-  background: var(--tapik-blue);
+  background: var(--tapik-container-bg);
   box-shadow: 0 8px 18px rgba(25, 67, 83, 0.25);
   text-align: center;
 }
@@ -194,6 +262,16 @@ textarea:focus-visible {
 .tapik-auth-button:hover {
   background: #ffe18c;
   transform: translateY(-1px);
+}
+
+.tapik-auth-button-outline {
+  color: #ffd35b;
+  background: transparent;
+}
+
+.tapik-auth-button-outline:hover {
+  color: #173746;
+  background: #ffd35b;
 }
 
 .tapik-admin-navbar {
@@ -287,8 +365,8 @@ textarea:focus-visible {
   .tapik-navbar-inner {
     flex-direction: row;
     align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
+    gap: 4px;
+    padding: 6px 8px;
   }
 
   .tapik-brand {
@@ -297,8 +375,8 @@ textarea:focus-visible {
   }
 
   .tapik-brand-logo {
-    width: 76px;
-    height: 32px;
+    width: 58px;
+    height: 28px;
   }
 
   .tapik-brand-tagline {
@@ -307,21 +385,32 @@ textarea:focus-visible {
   }
 
   .tapik-navigation {
-    justify-content: flex-start;
+    flex: 1 1 auto;
+    min-width: 0;
+    justify-content: space-evenly;
     gap: 0;
   }
 
   .tapik-nav-link {
-    padding: 6px 5px;
-    font-size: 11px;
+    min-width: 0;
+    gap: 3px;
+    padding: 6px 3px;
+    font-size: 10px;
   }
 
   .tapik-auth-actions {
-    gap: 4px;
+    gap: 3px;
   }
 
   .tapik-auth-button {
-    padding: 6px 7px;
+    padding: 6px 5px;
+    font-size: 9px;
+  }
+
+  .tapik-cart-count {
+    min-width: 17px;
+    height: 17px;
+    padding: 0 3px;
     font-size: 10px;
   }
 
@@ -372,7 +461,7 @@ textarea:focus-visible {
 .tapik-eyebrow {
   margin: 0 0 7px;
   color: #ffc15b;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 900;
   letter-spacing: 2px;
 }
@@ -387,7 +476,7 @@ textarea:focus-visible {
 .tapik-cart-subtitle {
   margin: 8px 0 0;
   color: #fff;
-  font-size: 15px;
+  font-size: 17px;
 }
 
 .tapik-item-count {
@@ -395,7 +484,7 @@ textarea:focus-visible {
   padding: 9px 15px;
   border-radius: 999px;
   background: #65a6c2;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
 }
 
@@ -410,7 +499,7 @@ textarea:focus-visible {
 .tapik-order-summary {
   min-width: 0;
   border-radius: 24px;
-  background: rgba(101, 166, 194, 0.96);
+  background: var(--tapik-container-bg);
   box-shadow: 0 12px 28px rgba(25, 67, 83, 0.22);
 }
 
@@ -429,13 +518,13 @@ textarea:focus-visible {
 .tapik-panel-heading h2,
 .tapik-order-summary h2 {
   margin: 0;
-  font-size: 23px;
+  font-size: 25px;
   font-weight: 900;
   text-shadow: var(--tapik-text-shadow);
 }
 
 .tapik-panel-heading > span {
-  font-size: 12px;
+  font-size: 14px;
   color: #fff;
 }
 
@@ -468,14 +557,14 @@ textarea:focus-visible {
 
 .tapik-cart-product-details h3 {
   margin: 0;
-  font-size: 18px;
+  font-size: 20px;
   font-weight: 900;
   text-shadow: var(--tapik-text-shadow);
 }
 
 .tapik-product-description {
-  margin: 5px 0 10px;
-  font-size: 12px;
+  margin: 7px 0 12px;
+  font-size: 15px;
   line-height: 1.6;
 }
 
@@ -486,10 +575,10 @@ textarea:focus-visible {
 }
 
 .tapik-product-tags span {
-  padding: 5px 9px;
+  padding: 6px 10px;
   border-radius: 999px;
   background: rgba(49, 113, 142, 0.45);
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
 }
 
@@ -502,7 +591,7 @@ textarea:focus-visible {
 }
 
 .tapik-quantity-label {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
 }
 
@@ -543,6 +632,7 @@ textarea:focus-visible {
   min-width: 16px;
   color: #477f99;
   text-align: center;
+  font-size: 15px;
   font-weight: 900;
 }
 
@@ -552,7 +642,7 @@ textarea:focus-visible {
   border: 0;
   color: #fff;
   background: transparent;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 800;
   text-decoration: underline;
   text-underline-offset: 3px;
@@ -568,11 +658,11 @@ textarea:focus-visible {
 
 .tapik-cart-line-price span,
 .tapik-cart-line-price small {
-  font-size: 11px;
+  font-size: 14px;
 }
 
 .tapik-cart-line-price strong {
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 900;
   white-space: nowrap;
 }
@@ -583,7 +673,7 @@ textarea:focus-visible {
   border: 0;
   color: #fff;
   background: transparent;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 800;
 }
 
@@ -593,7 +683,7 @@ textarea:focus-visible {
 
 .tapik-summary-caption {
   margin: 7px 0 22px;
-  font-size: 13px;
+  font-size: 15px;
 }
 
 .tapik-summary-section {
@@ -604,7 +694,7 @@ textarea:focus-visible {
 .tapik-summary-section h3 {
   margin: 0 0 12px;
   color: #ffc15b;
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 900;
   text-shadow: 1px 1px 1px rgba(90, 80, 50, 0.25);
 }
@@ -615,7 +705,7 @@ textarea:focus-visible {
   align-items: flex-start;
   gap: 12px;
   margin: 9px 0;
-  font-size: 13px;
+  font-size: 15px;
   line-height: 1.5;
 }
 
@@ -630,7 +720,7 @@ textarea:focus-visible {
 
 .tapik-shipping-note {
   margin: 10px 0 0;
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.6;
   opacity: 0.92;
 }
@@ -646,7 +736,7 @@ textarea:focus-visible {
 
 .tapik-summary-total span {
   color: #ffc15b;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 900;
   text-shadow: var(--tapik-text-shadow);
 }
@@ -670,7 +760,7 @@ textarea:focus-visible {
   color: #fff;
   background: #4f94b2;
   box-shadow: 0 5px 12px rgba(32, 76, 92, 0.2);
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 900;
   transition: transform 150ms ease, background-color 150ms ease;
 }
@@ -690,7 +780,7 @@ textarea:focus-visible {
   justify-content: center;
   gap: 7px;
   margin-top: 14px;
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1.5;
   text-align: center;
 }
@@ -705,7 +795,7 @@ textarea:focus-visible {
   margin: 50px auto;
   padding: 44px 24px;
   border-radius: 24px;
-  background: rgba(101, 166, 194, 0.96);
+  background: var(--tapik-container-bg);
   box-shadow: 0 12px 28px rgba(25, 67, 83, 0.22);
   text-align: center;
 }
@@ -725,7 +815,7 @@ textarea:focus-visible {
 
 .tapik-empty-cart p {
   margin: 0 0 24px;
-  font-size: 14px;
+  font-size: 16px;
   line-height: 1.7;
 }
 
@@ -1259,9 +1349,9 @@ textarea:focus-visible {
 .tapik-bubble {
   padding: 24px;
   border-radius: 40px;
-  background: #fff;
+  background: var(--tapik-container-bg);
   box-shadow: 0 8px 18px rgba(25, 67, 83, 0.22);
-  color: var(--tapik-yellow);
+  color: #fff;
   font-size: 15px;
   font-weight: 800;
   line-height: 1.55;
@@ -1271,7 +1361,7 @@ textarea:focus-visible {
 .tapik-feature-box {
   padding: 26px 32px;
   border-radius: 24px;
-  background: var(--tapik-panel);
+  background: var(--tapik-container-bg);
   box-shadow: 0 12px 28px rgba(25, 67, 83, 0.22);
 }
 

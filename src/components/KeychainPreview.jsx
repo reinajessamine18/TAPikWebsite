@@ -74,30 +74,38 @@ export default function KeychainPreview({
       style={{ maxWidth: STAGE_W, aspectRatio: `${STAGE_W} / ${STAGE_H}` }}
     >
       {/* ARROWS: pinned to the stage edges */}
-      <StageArrow
-        side="left"
-        top={CLASP_ARROWS_TOP}
-        label="Previous clasp"
-        onClick={onPrevChain}
-      />
-      <StageArrow
-        side="right"
-        top={CLASP_ARROWS_TOP}
-        label="Next clasp"
-        onClick={onNextChain}
-      />
-      <StageArrow
-        side="left"
-        top={ACRYLIC_ARROWS_TOP}
-        label="Previous acrylic shape"
-        onClick={onPrevShape}
-      />
-      <StageArrow
-        side="right"
-        top={ACRYLIC_ARROWS_TOP}
-        label="Next acrylic shape"
-        onClick={onNextShape}
-      />
+      {onPrevChain && (
+        <StageArrow
+          side="left"
+          top={CLASP_ARROWS_TOP}
+          label="Previous clasp"
+          onClick={onPrevChain}
+        />
+      )}
+      {onNextChain && (
+        <StageArrow
+          side="right"
+          top={CLASP_ARROWS_TOP}
+          label="Next clasp"
+          onClick={onNextChain}
+        />
+      )}
+      {onPrevShape && (
+        <StageArrow
+          side="left"
+          top={ACRYLIC_ARROWS_TOP}
+          label="Previous acrylic shape"
+          onClick={onPrevShape}
+        />
+      )}
+      {onNextShape && (
+        <StageArrow
+          side="right"
+          top={ACRYLIC_ARROWS_TOP}
+          label="Next acrylic shape"
+          onClick={onNextShape}
+        />
+      )}
 
       {/* KEYCHAIN: pinned to the top-center of the stage */}
       <div

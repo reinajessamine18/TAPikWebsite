@@ -40,14 +40,14 @@ export function computePrice({ shape = 'rectangle', chain = 'gold' } = {}) {
   return total
 }
 
-// Simulated J&T Express style delivery brackets (PHP), used for demo/prototype.
+// Shipping fee brackets in Philippine Pesos, based on package weight.
 export const SHIPPING_BRACKETS = [
   { maxKg: 1, fee: 60 },
   { maxKg: 2, fee: 80 },
   { maxKg: 3, fee: 100 },
 ]
 
-export function estimateShipping(weightGrams = 200) {
+export function calculateShippingFee(weightGrams = 200) {
   const kg = Math.max(0.001, weightGrams / 1000)
   const bracket = SHIPPING_BRACKETS.find((b) => kg <= b.maxKg) || SHIPPING_BRACKETS[SHIPPING_BRACKETS.length - 1]
   return bracket.fee

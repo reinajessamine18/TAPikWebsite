@@ -3,6 +3,7 @@ const ORDERS_KEY = 'tapik_orders'
 const USERS_KEY = 'tapik_users'
 const SESSION_KEY = 'tapik_session'
 const PRODUCTS_KEY = 'tapik_products'
+const DELIVERY_DETAILS_PREFIX = 'tapik_delivery_details_'
 
 const DEMO_ADMIN = {
   id: 'tapik-admin',
@@ -104,6 +105,20 @@ export function loadProducts() {
 
 export function saveProducts(products) {
   localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products))
+}
+
+export function loadDeliveryDetails(userId) {
+  if (!userId) return null
+  try {
+    return JSON.parse(localStorage.getItem(`${DELIVERY_DETAILS_PREFIX}${userId}`))
+  } catch {
+    return null
+  }
+}
+
+export function saveDeliveryDetails(userId, details) {
+  if (!userId) return
+  localStorage.setItem(`${DELIVERY_DETAILS_PREFIX}${userId}`, JSON.stringify(details))
 }
 
 export function newId(prefix = 'id') {

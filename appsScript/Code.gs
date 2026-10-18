@@ -149,7 +149,7 @@ function createOrder(data) {
       TotalAmount: Number(data.total) || 0,
       PaymentMethod: data.paymentMethod || 'Manual',
       PaymentStatus: data.paymentStatus || 'Pending',
-      OrderStatus: data.status || 'Processing',
+      OrderStatus: data.status || 'Pending',
       ShippingAddressID: data.shippingAddressId || '',
       Notes: JSON.stringify({
         customerInstructions: customer.instructions || '',
@@ -174,9 +174,9 @@ function createOrder(data) {
     upsertByKey('Shipments', 'ShipmentID', 'SHP_' + orderId, {
       ShipmentID: 'SHP_' + orderId,
       OrderID: orderId,
-      Courier: 'J&T Express',
+      Courier: '',
       TrackingNumber: data.trackingNumber || '',
-      ShipmentStatus: data.status || 'Processing',
+      ShipmentStatus: data.status || 'Pending',
       RecipientName: customer.name || '',
       RecipientPhone: customer.phone || '',
       DeliveryAddress: deliveryAddress,
@@ -185,7 +185,7 @@ function createOrder(data) {
       DeliveredAt: '',
       TrackingURL: '',
       IsSimulated: true,
-      Remarks: 'Simulated shipment'
+      Remarks: 'Awaiting courier booking'
     })
 
     return { ok: true, orderId: orderId, trackingNumber: data.trackingNumber || '' }
