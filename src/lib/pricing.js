@@ -40,15 +40,32 @@ export function computePrice({ shape = 'rectangle', chain = 'gold' } = {}) {
   return total
 }
 
-// Shipping fee brackets in Philippine Pesos, based on package weight.
-export const SHIPPING_BRACKETS = [
-  { maxKg: 1, fee: 60 },
-  { maxKg: 2, fee: 80 },
-  { maxKg: 3, fee: 100 },
+// Shipping is a base fee by delivery zone (distance from the production site
+// in Pinagbuhatan, Pasig) plus a weight add-on, in Philippine Pesos.
+export const SHIPPING_ZONES = [
+  { zone: 1, fee: 60, cities: ['Pasig', 'Marikina', 'Mandaluyong', 'San Juan', 'Taguig', 'Pateros'] },
+  { zone: 2, fee: 80, cities: ['Quezon City', 'Makati', 'Manila', 'Pasay'] },
+  { zone: 3, fee: 100, cities: ['Parañaque', 'Caloocan', 'Muntinlupa'] },
+  { zone: 4, fee: 120, cities: ['Las Piñas', 'Valenzuela', 'Malabon', 'Navotas'] },
 ]
 
-export function calculateShippingFee(weightGrams = 200) {
+export const WEIGHT_SURCHARGES = [
+  { maxKg: 1, fee: 0 },
+  { maxKg: 2, fee: 20 },
+  { maxKg: 3, fee: 40 },
+]
+
+export const METRO_MANILA_CITIES = SHIPPING_ZONES.flatMap((z) => z.cities).sort((a, b) =>
+  a.localeCompare(b)
+)
+
+// Returns null when the city is not a delivery city.
+export function calculateShippingFee(weightGrams = 200, city = '') {
+  const zone = SHIPPING_ZONES.find((z) => z.cities.includes(city))
+  if (!zone) return null
   const kg = Math.max(0.001, weightGrams / 1000)
-  const bracket = SHIPPING_BRACKETS.find((b) => kg <= b.maxKg) || SHIPPING_BRACKETS[SHIPPING_BRACKETS.length - 1]
-  return bracket.fee
+  const bracket =
+    WEIGHT_SURCHARGES.find((b) => kg <= b.maxKg) ||
+    WEIGHT_SURCHARGES[WEIGHT_SURCHARGES.length - 1]
+  return zone.fee + bracket.fee
 }

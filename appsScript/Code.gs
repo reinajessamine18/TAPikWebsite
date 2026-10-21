@@ -120,6 +120,29 @@ function doPost(event) {
     .setMimeType(ContentService.MimeType.JSON)
 }
 
+// Keep in sync with SHIPPING_ZONES and WEIGHT_SURCHARGES in src/lib/pricing.js.
+const SHIPPING_ZONES = [
+  { fee: 60, cities: ['Pasig', 'Marikina', 'Mandaluyong', 'San Juan', 'Taguig', 'Pateros'] },
+  { fee: 80, cities: ['Quezon City', 'Makati', 'Manila', 'Pasay'] },
+  { fee: 100, cities: ['Parañaque', 'Caloocan', 'Muntinlupa'] },
+  { fee: 120, cities: ['Las Piñas', 'Valenzuela', 'Malabon', 'Navotas'] }
+]
+const WEIGHT_SURCHARGES = [
+  { maxKg: 1, fee: 0 },
+  { maxKg: 2, fee: 20 },
+  { maxKg: 3, fee: 40 }
+]
+
+// Returns null when the city is not a delivery city.
+function calculateShippingFee(weightGrams, city) {
+  const zone = SHIPPING_ZONES.filter(function (z) { return z.cities.indexOf(city) !== -1 })[0]
+  if (!zone) return null
+  const kg = Math.max(0.001, weightGrams / 1000)
+  const bracket = WEIGHT_SURCHARGES.filter(function (b) { return kg <= b.maxKg })[0] ||
+    WEIGHT_SURCHARGES[WEIGHT_SURCHARGES.length - 1]
+  return zone.fee + bracket.fee
+}
+
 function createOrder(data) {
   const lock = LockService.getScriptLock()
   lock.waitLock(10000)
@@ -141,6 +164,15 @@ function createOrder(data) {
     const customer = data.customer || {}
     const customerId = data.customerId || customer.customerId || genId('CUST')
     const items = Array.isArray(data.items) ? data.items : []
+    // Recompute the shipping fee here so the browser cannot set its own price.
+    const weightGrams = items.reduce(function (sum, item) {
+      return sum + (Number(item.weightGrams) || 50) * (Number(item.qty) || 1)
+    }, 0)
+    const shippingFee = calculateShippingFee(weightGrams, customer.city)
+    if (shippingFee === null) {
+      throw new Error('Delivery is only available within Metro Manila cities.')
+    }
+    const orderTotal = (Number(data.subtotal) || 0) + shippingFee
     const now = new Date()
     const existingOrder = sheetToObjects(getSheet('Orders'))
       .find((order) => String(order.OrderID || '') === String(orderId)) || {}
@@ -169,8 +201,8 @@ function createOrder(data) {
       customer: customer,
       items: items,
       subtotal: data.subtotal,
-      shipping: data.shipping,
-      total: data.total,
+      shipping: shippingFee,
+      total: orderTotal,
       paymentMethod: data.paymentMethod || 'Manual',
       paymentStatus: data.paymentStatus || 'Pending'
     })
@@ -187,8 +219,8 @@ function createOrder(data) {
       CustomerID: customerId,
       OrderDate: data.date ? new Date(data.date) : now,
       Subtotal: Number(data.subtotal) || 0,
-      ShippingFee: Number(data.shipping) || 0,
-      TotalAmount: Number(data.total) || 0,
+      ShippingFee: shippingFee,
+      TotalAmount: orderTotal,
       PaymentMethod: data.paymentMethod || 'Manual',
       PaymentStatus: data.paymentStatus || 'Pending',
       OrderStatus: data.status || 'Pending',

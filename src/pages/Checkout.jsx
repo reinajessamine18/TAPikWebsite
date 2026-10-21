@@ -1,17 +1,32 @@
 import { useState } from 'react'
-import { calculateShippingFee } from '../lib/pricing'
+import { calculateShippingFee, METRO_MANILA_CITIES } from '../lib/pricing'
+import { getBarangays } from '../data/metroManila'
 import { saveOrders, loadOrders, loadDeliveryDetails, saveDeliveryDetails, newId } from '../lib/storage'
 import { api, downloadReceipt } from '../services/api'
 
-const PROVINCES = ['Metro Manila', 'Cavite', 'Laguna', 'Bulacan', 'Rizal', 'Pampanga', 'Batangas', 'Quezon']
+const REGION = 'Metro Manila'
+
+// Delivery is limited to Metro Manila. Older saved details may hold a free-text
+// city or another province, so drop anything that is not a valid selection.
+function normalizeDetails(details) {
+  if (!details) return details
+  const city = METRO_MANILA_CITIES.includes(details.city) ? details.city : ''
+  const barangay = getBarangays(city).includes(details.barangay) ? details.barangay : ''
+  return { ...details, province: REGION, city, barangay }
+}
+
+const isAddressComplete = (details) => Boolean(details?.city && details?.barangay)
 
 export default function Checkout({ cart, setCart, setPage, account }) {
   const [form, setForm] = useState(() => ({
-    name: account?.name || '', email: account?.email || '', phone: '', province: 'Metro Manila', city: '', barangay: '', street: '', landmark: '', instructions: '',
-    ...loadDeliveryDetails(account?.id),
+    name: account?.name || '', email: account?.email || '', phone: '', province: REGION, city: '', barangay: '', street: '', landmark: '', instructions: '',
+    ...normalizeDetails(loadDeliveryDetails(account?.id)),
   }))
-  const [savedDetails, setSavedDetails] = useState(() => loadDeliveryDetails(account?.id))
-  const [isEditingDetails, setIsEditingDetails] = useState(() => !loadDeliveryDetails(account?.id))
+  const [savedDetails, setSavedDetails] = useState(() => normalizeDetails(loadDeliveryDetails(account?.id)))
+  const [isEditingDetails, setIsEditingDetails] = useState(() => {
+    const details = normalizeDetails(loadDeliveryDetails(account?.id))
+    return !details || !isAddressComplete(details)
+  })
   const [success, setSuccess] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
@@ -19,12 +34,15 @@ export default function Checkout({ cart, setCart, setPage, account }) {
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const weight = cart.reduce((s, i) => s + (i.weightGrams || 50) * i.qty, 0)
-  const hasCity = Boolean(form.city.trim())
-  const shipping = cart.length && hasCity ? calculateShippingFee(weight) : 0
+  const fee = cart.length ? calculateShippingFee(weight, form.city) : null
+  const hasCity = fee !== null
+  const shipping = fee ?? 0
   const total = subtotal + shipping
+  const barangayOptions = getBarangays(form.city)
 
   const update = (key, value) => {
     const next = { ...form, [key]: value }
+    if (key === 'city') next.barangay = ''
     setForm(next)
     saveDeliveryDetails(account.id, next)
     setSavedDetails(next)
@@ -42,8 +60,9 @@ export default function Checkout({ cart, setCart, setPage, account }) {
   const submit = async (e) => {
     e.preventDefault()
     if (submitting) return
-    if (!form.name || !form.phone || !form.street || !form.city) {
-      alert('Please fill in the required delivery details.')
+    if (!form.name || !form.phone || !form.street || !hasCity || !form.barangay) {
+      alert('Please fill in the required delivery details, including your city and barangay.')
+      setIsEditingDetails(true)
       return
     }
     const orderId = newId('TAP')
@@ -158,11 +177,15 @@ export default function Checkout({ cart, setCart, setPage, account }) {
               <input required placeholder="Full name *" value={form.name} onChange={(e) => update('name', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
               <input placeholder="Email" value={form.email} onChange={(e) => update('email', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
               <input required placeholder="Phone number *" value={form.phone} onChange={(e) => update('phone', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
-              <select value={form.province} onChange={(e) => update('province', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white">
-                {PROVINCES.map((province) => <option key={province} className="text-blue-900">{province}</option>)}
+              <input readOnly aria-label="Region" value={REGION} className="w-full border border-white/20 bg-white/10 rounded-xl p-2 text-white opacity-80" />
+              <select required aria-label="City / Municipality" value={form.city} onChange={(e) => update('city', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white">
+                <option value="" className="text-blue-900">City / Municipality *</option>
+                {METRO_MANILA_CITIES.map((city) => <option key={city} value={city} className="text-blue-900">{city}</option>)}
               </select>
-              <input required placeholder="City / Municipality *" value={form.city} onChange={(e) => update('city', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
-              <input placeholder="Barangay" value={form.barangay} onChange={(e) => update('barangay', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
+              <select required aria-label="Barangay" value={form.barangay} disabled={!form.city} onChange={(e) => update('barangay', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white disabled:opacity-60">
+                <option value="" className="text-blue-900">{form.city ? 'Barangay *' : 'Select a city first'}</option>
+                {barangayOptions.map((barangay) => <option key={barangay} value={barangay} className="text-blue-900">{barangay}</option>)}
+              </select>
               <input required placeholder="Street / house / building *" value={form.street} onChange={(e) => update('street', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
               <input placeholder="Landmark (optional)" value={form.landmark} onChange={(e) => update('landmark', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
               <textarea placeholder="Delivery instructions" value={form.instructions} onChange={(e) => update('instructions', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" rows={3} />
