@@ -37,6 +37,12 @@ export function saveOrders(orders) {
   localStorage.setItem(ORDERS_KEY, JSON.stringify(orders))
 }
 
+// Replaces stored orders that share an id with the given ones and keeps the rest.
+export function upsertOrders(updated) {
+  const ids = new Set(updated.map((order) => order.id))
+  saveOrders([...updated, ...loadOrders().filter((order) => !ids.has(order.id))])
+}
+
 export function loadUsers() {
   try {
     const users = JSON.parse(localStorage.getItem(USERS_KEY)) || []

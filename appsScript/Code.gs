@@ -2,6 +2,22 @@
 // Deploy as a Web app that executes as the spreadsheet owner.
 
 const DESIGN_FOLDER_NAME = 'TAPik Customer Designs'
+const PROOF_FOLDER_NAME = 'TAPik Payment Proofs'
+
+// Optional Orders columns. They are added automatically when missing.
+const ORDER_EXTRA_HEADERS = [
+  'ReceiptNumber', 'ReceiptURL', 'Landmark', 'Barangay', 'City',
+  'PaymentReference', 'ProofURL', 'PaymentSubmittedAt', 'PaymentVerifiedAt', 'PaymentRejectReason'
+]
+
+// Statuses an admin may pick by hand. Payment statuses only change through
+// submitPaymentProof and verifyPayment, so an order cannot skip verification.
+const FULFILLMENT_STATUSES = ['Being prepared', 'Packed', 'Shipped', 'Delivered']
+const PAYABLE_STATUSES = ['Awaiting payment', 'Payment rejected', 'Pending']
+
+function ensureOrderHeaders() {
+  return ensureHeaders('Orders', ORDER_EXTRA_HEADERS)
+}
 
 function getDb() {
   return SpreadsheetApp.getActiveSpreadsheet()
@@ -84,6 +100,10 @@ function doGet(event) {
       result = getDesignImage(event.parameter.payload ? JSON.parse(event.parameter.payload) : {})
     } else if (action === 'getAdminData') {
       result = { ok: true, data: getAdminData() }
+    } else if (action === 'getCustomerOrders') {
+      result = getCustomerOrders(event.parameter.payload ? JSON.parse(event.parameter.payload) : {})
+    } else if (action === 'getPaymentProof') {
+      result = getPaymentProof(event.parameter.payload ? JSON.parse(event.parameter.payload) : {})
     } else if (action === 'ping') {
       result = { ok: true, message: 'TAPik Apps Script is connected' }
     } else {
@@ -107,6 +127,10 @@ function doPost(event) {
       result = createOrder(payload.data || {})
     } else if (action === 'updateOrderStatus') {
       result = updateOrderStatus(payload.data || {})
+    } else if (action === 'submitPaymentProof') {
+      result = submitPaymentProof(payload.data || {})
+    } else if (action === 'verifyPayment') {
+      result = verifyPayment(payload.data || {})
     } else if (action === 'saveProduct') {
       result = saveProduct(payload.data || {})
     } else if (action === 'deleteProduct') {
@@ -151,7 +175,7 @@ function createOrder(data) {
       'OrderID', 'CustomerID', 'OrderDate', 'Subtotal', 'ShippingFee', 'TotalAmount',
       'PaymentMethod', 'PaymentStatus', 'OrderStatus', 'ShippingAddressID', 'Notes'
     ])
-    ensureHeaders('Orders', ['ReceiptNumber', 'ReceiptURL'])
+    ensureOrderHeaders()
     assertHeaders('Customers', ['CustomerID', 'CustomerName', 'Email', 'Phone'])
     assertHeaders('OrderItems', ['OrderItemID', 'OrderID', 'ProductID', 'Quantity', 'UnitPrice', 'Subtotal'])
     assertHeaders('Shipments', [
@@ -177,6 +201,11 @@ function createOrder(data) {
     const existingOrder = sheetToObjects(getSheet('Orders'))
       .find((order) => String(order.OrderID || '') === String(orderId)) || {}
     const existingNotes = parseOrderNotes(existingOrder.Notes)
+    // Re-posting an order must never reset its payment progress, and the browser
+    // cannot choose the status: every new order starts as awaiting payment.
+    const orderStatus = existingOrder.OrderStatus || 'Awaiting payment'
+    const paymentMethod = existingOrder.PaymentMethod || 'QR (demo)'
+    const paymentStatus = existingOrder.PaymentStatus || 'Pending'
     const shipmentSheet = getSheet('Shipments')
     const existingShipment = sheetToObjects(shipmentSheet)
       .find((shipment) => String(shipment.OrderID || '') === String(orderId)) || {}
@@ -203,8 +232,8 @@ function createOrder(data) {
       subtotal: data.subtotal,
       shipping: shippingFee,
       total: orderTotal,
-      paymentMethod: data.paymentMethod || 'Manual',
-      paymentStatus: data.paymentStatus || 'Pending'
+      paymentMethod: paymentMethod,
+      paymentStatus: paymentStatus
     })
 
     upsertByKey('Customers', 'CustomerID', customerId, {
@@ -221,16 +250,25 @@ function createOrder(data) {
       Subtotal: Number(data.subtotal) || 0,
       ShippingFee: shippingFee,
       TotalAmount: orderTotal,
-      PaymentMethod: data.paymentMethod || 'Manual',
-      PaymentStatus: data.paymentStatus || 'Pending',
-      OrderStatus: data.status || 'Pending',
+      PaymentMethod: paymentMethod,
+      PaymentStatus: paymentStatus,
+      OrderStatus: orderStatus,
       ShippingAddressID: data.shippingAddressId || '',
       ReceiptNumber: receiptNumber,
       ReceiptURL: receiptURL,
+      Landmark: customer.landmark || '',
+      Barangay: customer.barangay || '',
+      City: customer.city || '',
+      PaymentReference: existingOrder.PaymentReference || '',
+      ProofURL: existingOrder.ProofURL || '',
+      PaymentSubmittedAt: existingOrder.PaymentSubmittedAt || '',
+      PaymentVerifiedAt: existingOrder.PaymentVerifiedAt || '',
+      PaymentRejectReason: existingOrder.PaymentRejectReason || '',
       Notes: JSON.stringify({
         customerInstructions: customer.instructions || '',
         customerAddress: {
           street: customer.street || '',
+          landmark: customer.landmark || '',
           barangay: customer.barangay || '',
           city: customer.city || '',
           province: customer.province || ''
@@ -258,7 +296,7 @@ function createOrder(data) {
       OrderID: orderId,
       Courier: existingShipment.Courier || 'J&T Express',
       TrackingNumber: trackingNumber,
-      ShipmentStatus: data.status || 'Pending',
+      ShipmentStatus: orderStatus,
       RecipientName: customer.name || '',
       RecipientPhone: customer.phone || '',
       DeliveryAddress: deliveryAddress,
@@ -282,96 +320,264 @@ function createOrder(data) {
   }
 }
 
-function updateOrderStatus(data) {
+function findOrder(orderId) {
+  return sheetToObjects(getSheet('Orders'))
+    .find((order) => String(order.OrderID || '') === String(orderId)) || null
+}
+
+// Writes the given columns on one order row. Returns false when the order is missing.
+function updateOrderRow(orderId, fields) {
   const sheet = getSheet('Orders')
   const values = sheet.getDataRange().getValues()
   const headers = values[0] || []
-  const statusColumn = headers.indexOf('OrderStatus')
   const idColumn = headers.indexOf('OrderID')
-  if (statusColumn < 0 || idColumn < 0) {
-    return { ok: false, error: 'Orders sheet is missing OrderID or OrderStatus header' }
-  }
+  if (idColumn < 0) throw new Error('Orders sheet is missing OrderID header')
 
   for (let row = 1; row < values.length; row++) {
-    if (String(values[row][idColumn]) === String(data.orderId)) {
-      sheet.getRange(row + 1, statusColumn + 1).setValue(data.status)
-      const shipmentSheet = getSheet('Shipments')
-      const shipmentValues = shipmentSheet.getDataRange().getValues()
-      const shipmentHeaders = shipmentValues[0] || []
-      const shipmentOrderColumn = shipmentHeaders.indexOf('OrderID')
-      const shipmentStatusColumn = shipmentHeaders.indexOf('ShipmentStatus')
-      if (shipmentOrderColumn >= 0 && shipmentStatusColumn >= 0) {
-        for (let shipmentRow = 1; shipmentRow < shipmentValues.length; shipmentRow++) {
-          if (String(shipmentValues[shipmentRow][shipmentOrderColumn]) === String(data.orderId)) {
-            shipmentSheet.getRange(shipmentRow + 1, shipmentStatusColumn + 1).setValue(data.status)
-          }
-        }
-      }
-      return { ok: true }
+    if (String(values[row][idColumn]) !== String(orderId)) continue
+    Object.keys(fields).forEach((key) => {
+      const column = headers.indexOf(key)
+      if (column < 0) throw new Error('Orders sheet is missing ' + key + ' header')
+      sheet.getRange(row + 1, column + 1).setValue(fields[key])
+    })
+    return true
+  }
+  return false
+}
+
+function syncShipmentStatus(orderId, status) {
+  const shipmentSheet = getSheet('Shipments')
+  const shipmentValues = shipmentSheet.getDataRange().getValues()
+  const shipmentHeaders = shipmentValues[0] || []
+  const shipmentOrderColumn = shipmentHeaders.indexOf('OrderID')
+  const shipmentStatusColumn = shipmentHeaders.indexOf('ShipmentStatus')
+  if (shipmentOrderColumn < 0 || shipmentStatusColumn < 0) return
+  for (let shipmentRow = 1; shipmentRow < shipmentValues.length; shipmentRow++) {
+    if (String(shipmentValues[shipmentRow][shipmentOrderColumn]) === String(orderId)) {
+      shipmentSheet.getRange(shipmentRow + 1, shipmentStatusColumn + 1).setValue(status)
     }
   }
-  return { ok: false, error: 'Order not found' }
+}
+
+function updateOrderStatus(data) {
+  const status = String(data.status || '')
+  if (status !== 'Cancelled' && FULFILLMENT_STATUSES.indexOf(status) < 0) {
+    return { ok: false, error: 'Payment statuses can only be changed through payment verification.' }
+  }
+
+  const lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    ensureOrderHeaders()
+    const order = findOrder(data.orderId)
+    if (!order) return { ok: false, error: 'Order not found' }
+    if (status !== 'Cancelled' && order.PaymentStatus !== 'Paid') {
+      return { ok: false, error: 'Confirm the payment before preparing or shipping this order.' }
+    }
+    updateOrderRow(data.orderId, { OrderStatus: status })
+    syncShipmentStatus(data.orderId, status)
+    return { ok: true }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+function submitPaymentProof(data) {
+  const lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    ensureOrderHeaders()
+    const orderId = String(data.orderId || '')
+    const order = findOrder(orderId)
+    if (!order) return { ok: false, error: 'Order not found' }
+    if (String(order.CustomerID || '') !== String(data.customerId || '')) {
+      return { ok: false, error: 'This order belongs to a different account.' }
+    }
+    if (PAYABLE_STATUSES.indexOf(String(order.OrderStatus || '')) < 0) {
+      return { ok: false, error: 'This order is not waiting for payment.' }
+    }
+
+    const reference = String(data.reference || '').trim().toUpperCase()
+    if (!/^[A-Z0-9-]{6,30}$/.test(reference)) {
+      return { ok: false, error: 'Enter the payment reference number (6-30 letters, numbers, or dashes).' }
+    }
+    if (!data.proofImage || String(data.proofImage).indexOf('data:image/') !== 0) {
+      return { ok: false, error: 'Upload a screenshot or photo of your proof of payment.' }
+    }
+
+    const proofURL = saveProofImage(data.proofImage, orderId)
+    updateOrderRow(orderId, {
+      OrderStatus: 'Payment submitted',
+      PaymentStatus: 'Submitted',
+      PaymentReference: reference,
+      ProofURL: proofURL,
+      PaymentSubmittedAt: new Date(),
+      PaymentVerifiedAt: '',
+      PaymentRejectReason: ''
+    })
+    syncShipmentStatus(orderId, 'Payment submitted')
+    return { ok: true, status: 'Payment submitted', paymentStatus: 'Submitted', paymentReference: reference }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+// Admin decision on a submitted proof: decision is 'confirm' or 'reject'.
+function verifyPayment(data) {
+  const decision = String(data.decision || '')
+  const reason = String(data.reason || '').trim().slice(0, 200)
+  if (decision !== 'confirm' && decision !== 'reject') {
+    return { ok: false, error: 'Decision must be confirm or reject.' }
+  }
+  if (decision === 'reject' && !reason) {
+    return { ok: false, error: 'Give a reason so the customer knows what to fix.' }
+  }
+
+  const lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    ensureOrderHeaders()
+    const order = findOrder(data.orderId)
+    if (!order) return { ok: false, error: 'Order not found' }
+    if (order.OrderStatus !== 'Payment submitted') {
+      return { ok: false, error: 'There is no submitted proof of payment to review for this order.' }
+    }
+
+    const confirmed = decision === 'confirm'
+    const fields = confirmed
+      ? { OrderStatus: 'Confirmed payment', PaymentStatus: 'Paid', PaymentVerifiedAt: new Date(), PaymentRejectReason: '' }
+      : { OrderStatus: 'Payment rejected', PaymentStatus: 'Rejected', PaymentRejectReason: reason }
+    updateOrderRow(data.orderId, fields)
+    syncShipmentStatus(data.orderId, fields.OrderStatus)
+    return {
+      ok: true,
+      status: fields.OrderStatus,
+      paymentStatus: fields.PaymentStatus,
+      paymentVerifiedAt: confirmed ? fields.PaymentVerifiedAt : '',
+      paymentRejectReason: confirmed ? '' : reason
+    }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+function getPaymentProof(data) {
+  ensureOrderHeaders()
+  const order = findOrder(data.orderId)
+  if (!order) return { ok: false, error: 'Order not found' }
+  const match = String(order.ProofURL || '').match(/\/file\/d\/([^/?]+)/)
+  if (!match) return { ok: false, error: 'No proof of payment has been uploaded for this order.' }
+
+  const file = DriveApp.getFileById(decodeURIComponent(match[1]))
+  const parents = file.getParents()
+  const proofFolderId = getProofFolder().getId()
+  let belongsToProofFolder = false
+  while (parents.hasNext()) {
+    if (parents.next().getId() === proofFolderId) {
+      belongsToProofFolder = true
+      break
+    }
+  }
+  if (!belongsToProofFolder) {
+    return { ok: false, error: 'The requested file is not a stored proof of payment' }
+  }
+
+  const blob = file.getBlob()
+  return {
+    ok: true,
+    mimeType: blob.getContentType(),
+    data: Utilities.base64Encode(blob.getBytes())
+  }
 }
 
 function getAdminData() {
   assignMissingSimulatedTrackingNumbers()
-  ensureHeaders('Orders', ['ReceiptNumber', 'ReceiptURL'])
-  const orders = sheetToObjects(getSheet('Orders'))
+  return {
+    orders: buildOrders(''),
+    products: sheetToObjects(getSheet('Products'))
+  }
+}
+
+function getCustomerOrders(data) {
+  const customerId = String(data.customerId || '')
+  if (!customerId) return { ok: false, error: 'Customer ID is required' }
+  return { ok: true, data: buildOrders(customerId) }
+}
+
+// Builds the order list the storefront uses. Pass a customer ID to limit it to one customer.
+function buildOrders(customerId) {
+  ensureOrderHeaders()
+  const allOrders = sheetToObjects(getSheet('Orders'))
+  const orders = customerId
+    ? allOrders.filter((row) => String(row.CustomerID || '') === customerId)
+    : allOrders
   const orderItems = sheetToObjects(getSheet('OrderItems'))
   const customers = sheetToObjects(getSheet('Customers'))
   const shipments = sheetToObjects(getSheet('Shipments'))
 
-  return {
-    orders: orders.map((row) => {
-      const orderId = String(row.OrderID || '')
-      const customer = customers.find((entry) => String(entry.CustomerID || '') === String(row.CustomerID || '')) || {}
-      const shipment = shipments.find((entry) => String(entry.OrderID || '') === orderId) || {}
-      const notes = parseOrderNotes(row.Notes)
-      const rows = orderItems.filter((entry) => String(entry.OrderID || '') === orderId)
+  // A payment reference reused on more than one order is a common sign of a faked proof.
+  const referenceCounts = {}
+  allOrders.forEach((row) => {
+    const reference = String(row.PaymentReference || '')
+    if (reference) referenceCounts[reference] = (referenceCounts[reference] || 0) + 1
+  })
 
-      return {
-        id: orderId,
-        customerId: row.CustomerID || '',
-        date: row.OrderDate || '',
-        subtotal: Number(row.Subtotal) || 0,
-        shipping: Number(row.ShippingFee) || 0,
-        total: Number(row.TotalAmount) || 0,
-        paymentMethod: row.PaymentMethod || '',
-        paymentStatus: row.PaymentStatus || '',
-        status: row.OrderStatus || 'Processing',
-        receiptNumber: row.ReceiptNumber || notes.receiptNumber || '',
-        receiptURL: row.ReceiptURL || notes.receiptURL || '',
-        trackingNumber: shipment.TrackingNumber || '',
-        courier: shipment.Courier || '',
-        isSimulated: shipment.IsSimulated === true || String(shipment.IsSimulated).toUpperCase() === 'TRUE',
-        customer: {
-          name: customer.CustomerName || shipment.RecipientName || '',
-          email: customer.Email || '',
-          phone: customer.Phone || shipment.RecipientPhone || '',
-          street: notes.customerAddress?.street || '',
-          barangay: notes.customerAddress?.barangay || '',
-          city: notes.customerAddress?.city || '',
-          province: notes.customerAddress?.province || '',
-          address: shipment.DeliveryAddress || '',
-          instructions: notes.customerInstructions || ''
-        },
-        items: rows.map((item, index) => {
-          const detail = (notes.items || [])[index] || {}
-          return {
-            id: item.OrderItemID,
-            shape: detail.shape || item.ProductID || 'custom',
-            name: detail.name || 'Custom keychain',
-            chain: detail.chain || '',
-            qty: Number(item.Quantity) || 1,
-            price: Number(item.UnitPrice) || 0,
-            image: detail.imageURL || '',
-            nfcLink: detail.nfcLink || ''
-          }
-        })
-      }
-    }),
-    products: sheetToObjects(getSheet('Products'))
-  }
+  return orders.map((row) => {
+    const orderId = String(row.OrderID || '')
+    const customer = customers.find((entry) => String(entry.CustomerID || '') === String(row.CustomerID || '')) || {}
+    const shipment = shipments.find((entry) => String(entry.OrderID || '') === orderId) || {}
+    const notes = parseOrderNotes(row.Notes)
+    const rows = orderItems.filter((entry) => String(entry.OrderID || '') === orderId)
+    const reference = String(row.PaymentReference || '')
+
+    return {
+      id: orderId,
+      customerId: row.CustomerID || '',
+      date: row.OrderDate || '',
+      subtotal: Number(row.Subtotal) || 0,
+      shipping: Number(row.ShippingFee) || 0,
+      total: Number(row.TotalAmount) || 0,
+      paymentMethod: row.PaymentMethod || '',
+      paymentStatus: row.PaymentStatus || 'Pending',
+      paymentReference: reference,
+      paymentSubmittedAt: row.PaymentSubmittedAt || '',
+      paymentVerifiedAt: row.PaymentVerifiedAt || '',
+      paymentRejectReason: row.PaymentRejectReason || '',
+      hasProof: Boolean(row.ProofURL),
+      duplicateReference: Boolean(reference) && referenceCounts[reference] > 1,
+      status: row.OrderStatus || 'Awaiting payment',
+      receiptNumber: row.ReceiptNumber || notes.receiptNumber || '',
+      receiptURL: row.ReceiptURL || notes.receiptURL || '',
+      trackingNumber: shipment.TrackingNumber || '',
+      courier: shipment.Courier || '',
+      isSimulated: shipment.IsSimulated === true || String(shipment.IsSimulated).toUpperCase() === 'TRUE',
+      customer: {
+        name: customer.CustomerName || shipment.RecipientName || '',
+        email: customer.Email || '',
+        phone: customer.Phone || shipment.RecipientPhone || '',
+        street: notes.customerAddress?.street || '',
+        landmark: row.Landmark || notes.customerAddress?.landmark || '',
+        barangay: row.Barangay || notes.customerAddress?.barangay || '',
+        city: row.City || notes.customerAddress?.city || '',
+        province: notes.customerAddress?.province || '',
+        address: shipment.DeliveryAddress || '',
+        instructions: notes.customerInstructions || ''
+      },
+      items: rows.map((item, index) => {
+        const detail = (notes.items || [])[index] || {}
+        return {
+          id: item.OrderItemID,
+          shape: detail.shape || item.ProductID || 'custom',
+          name: detail.name || 'Custom keychain',
+          chain: detail.chain || '',
+          qty: Number(item.Quantity) || 1,
+          price: Number(item.UnitPrice) || 0,
+          image: detail.imageURL || '',
+          nfcLink: detail.nfcLink || ''
+        }
+      })
+    }
+  })
 }
 
 function assignMissingSimulatedTrackingNumbers() {
@@ -422,13 +628,19 @@ function getDesignFolder() {
   return folders.hasNext() ? folders.next() : DriveApp.createFolder(DESIGN_FOLDER_NAME)
 }
 
+function getProofFolder() {
+  const folders = DriveApp.getFoldersByName(PROOF_FOLDER_NAME)
+  return folders.hasNext() ? folders.next() : DriveApp.createFolder(PROOF_FOLDER_NAME)
+}
+
 function authorizeDriveAccess() {
   const spreadsheet = getDb()
   const sheetCount = spreadsheet.getSheets().length
   const designFolder = getDesignFolder()
   const receiptFolder = getReceiptFolder()
+  const proofFolder = getProofFolder()
   return 'Spreadsheet access is ready (' + sheetCount + ' sheets). Drive folders: '
-    + designFolder.getName() + ', ' + receiptFolder.getName()
+    + designFolder.getName() + ', ' + receiptFolder.getName() + ', ' + proofFolder.getName()
 }
 
 function getReceiptFolder() {
@@ -556,6 +768,18 @@ function saveDesignImage(image) {
   const file = getDesignFolder().createFile(blob)
   file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW)
   return 'https://drive.google.com/uc?export=view&id=' + file.getId()
+}
+
+// Proofs of payment stay private in Drive; the admin page reads them through getPaymentProof.
+function saveProofImage(image, orderId) {
+  const match = String(image).match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,([\s\S]+)$/)
+  if (!match) throw new Error('Proof of payment is not a valid image')
+  const bytes = Utilities.base64Decode(match[2])
+  if (bytes.length > 8 * 1024 * 1024) throw new Error('Proof of payment image is too large')
+  const extension = match[1].split('/')[1].replace(/[^a-zA-Z0-9]/g, '') || 'img'
+  const blob = Utilities.newBlob(bytes, match[1], 'proof_' + orderId + '_' + Date.now() + '.' + extension)
+  const file = getProofFolder().createFile(blob)
+  return 'https://drive.google.com/file/d/' + file.getId() + '/view'
 }
 
 function saveProduct(data) {

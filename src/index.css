@@ -148,6 +148,16 @@ textarea:focus-visible {
   color: #4d101a;
 }
 
+.tapik-status-submitted {
+  background-color: #b9a4ec;
+  color: #2a1a5c;
+}
+
+.tapik-status-confirmed {
+  background-color: #9be0c2;
+  color: #0b3d2b;
+}
+
 .tapik-status-default {
   background-color: #d5e6eb;
   color: #203b45;

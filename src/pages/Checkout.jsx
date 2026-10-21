@@ -1,8 +1,10 @@
 import { useState } from 'react'
 import { calculateShippingFee, METRO_MANILA_CITIES } from '../lib/pricing'
 import { getBarangays } from '../data/metroManila'
-import { saveOrders, loadOrders, loadDeliveryDetails, saveDeliveryDetails, newId } from '../lib/storage'
+import { saveOrders, loadOrders, upsertOrders, loadDeliveryDetails, saveDeliveryDetails, newId } from '../lib/storage'
 import { api, downloadReceipt } from '../services/api'
+import { displayOrderStatus, PAYABLE_STATUSES } from '../lib/orderStatus'
+import PaymentPanel from '../components/PaymentPanel'
 
 const REGION = 'Metro Manila'
 
@@ -75,7 +77,9 @@ export default function Checkout({ cart, setCart, setPage, account }) {
       subtotal,
       shipping,
       total,
-      status: 'Pending',
+      status: 'Awaiting payment',
+      paymentMethod: 'QR (demo)',
+      paymentStatus: 'Pending',
     }
     setSubmitting(true)
     setSubmitError('')
@@ -107,11 +111,26 @@ export default function Checkout({ cart, setCart, setPage, account }) {
 
   if (success) {
     return (
-      <div className="min-h-screen text-white flex items-center justify-center px-4">
-        <div className="tapik-surface rounded-3xl border border-white/25 p-8 max-w-lg text-center">
-          <div className="text-3xl mb-3 text-green-300">Receipt ready</div>
-          <h2 className="text-2xl font-bold">Your order is being prepared</h2>
-          <p className="text-blue-100 mt-2">Thank you, {success.customer.name}. We have received your order.</p>
+      <div className="min-h-screen text-white flex items-center justify-center px-4 py-10">
+        <div className="tapik-surface rounded-3xl border border-white/25 p-8 max-w-2xl w-full text-center">
+          <div className="text-3xl mb-3 text-green-300">Order placed</div>
+          <h2 className="text-2xl font-bold">
+            {PAYABLE_STATUSES.includes(displayOrderStatus(success.status)) ? 'One more step: pay for your order' : 'Payment submitted'}
+          </h2>
+          <p className="text-blue-100 mt-2">
+            Thank you, {success.customer.name}. {PAYABLE_STATUSES.includes(displayOrderStatus(success.status))
+              ? 'Your order is saved. Scan the QR code, then upload your proof of payment. You can also do this later from Your orders.'
+              : 'We will verify your payment and start preparing your order.'}
+          </p>
+          {PAYABLE_STATUSES.includes(displayOrderStatus(success.status)) && (
+            <div className="mt-5">
+              <PaymentPanel
+                order={success}
+                account={account}
+                onUpdated={(updated) => { upsertOrders([updated]); setSuccess(updated) }}
+              />
+            </div>
+          )}
           <div className="tapik-surface mt-4 rounded-xl border border-white/25 p-4 text-left text-sm space-y-1">
             <div><strong>Order ID:</strong> {success.id}</div>
             <div><strong>Total:</strong> PHP {success.total}</div>

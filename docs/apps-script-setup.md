@@ -11,7 +11,11 @@ Create a Google spreadsheet named `TAPik Database` with these tabs. Put each com
 - `ShippingRates`: `RateID, DestinationProvince, DestinationCity, DestinationZIP, MinWeightGrams, MaxWeightGrams, ShippingFee, IsActive`
 - `Shipments`: `ShipmentID, OrderID, Courier, TrackingNumber, ShipmentStatus, RecipientName, RecipientPhone, DeliveryAddress, BookedAt, ShippedAt, DeliveredAt, TrackingURL, IsSimulated, Remarks`
 
-Keep the listed core headers unchanged; the Apps Script reads and updates rows by header name. It automatically adds the optional `ReceiptNumber` and `ReceiptURL` columns to `Orders` if they are not present.
+Keep the listed core headers unchanged; the Apps Script reads and updates rows by header name. It automatically adds these optional columns to `Orders` if they are not present: `ReceiptNumber`, `ReceiptURL`, `Landmark`, `Barangay`, `City`, `PaymentReference`, `ProofURL`, `PaymentSubmittedAt`, `PaymentVerifiedAt`, `PaymentRejectReason`.
+
+### Payment flow
+
+New orders start as `Awaiting payment` (`PaymentStatus` = `Pending`, `PaymentMethod` = `QR (demo)`). The customer scans a demo QR code, then submits a reference number and a screenshot (`submitPaymentProof`, status `Payment submitted`, `PaymentStatus` = `Submitted`). An admin reviews the proof in Admin -> Orders (`verifyPayment`): confirming sets the status `Confirmed payment` and `PaymentStatus` = `Paid`; rejecting sets `Payment rejected` with a reason, and the customer can upload a new proof. `updateOrderStatus` only accepts `Being prepared`, `Packed`, `Shipped`, `Delivered` (after the payment is `Paid`) and `Cancelled`. Proofs are saved privately in the `TAPik Payment Proofs` Drive folder and read back through `getPaymentProof`. An order whose payment reference is also on another order is flagged to the admin.
 
 ## 2. Add and deploy Apps Script
 
@@ -30,7 +34,7 @@ Each new order also receives a numbered PDF order receipt/payment acknowledgment
 
 ### Authorize uploaded-design storage
 
-Before using the database, authorize Sheets and Drive once. In the Apps Script editor, choose `authorizeDriveAccess` from the function dropdown and click **Run**. Review and approve both requested Google Sheets and Google Drive access using the account that owns the deployment. This also creates or reuses the `TAPik Customer Designs` folder. Then deploy a new web-app version. Image-free orders still need Sheets permission; Drive permission is used for uploaded designs.
+Before using the database, authorize Sheets and Drive once. In the Apps Script editor, choose `authorizeDriveAccess` from the function dropdown and click **Run**. Review and approve both requested Google Sheets and Google Drive access using the account that owns the deployment. This also creates or reuses the `TAPik Customer Designs`, `TAPik Receipts` and `TAPik Payment Proofs` folders. Then deploy a new web-app version. Image-free orders still need Sheets permission; Drive permission is used for uploaded designs.
 
 ## 3. Connect the storefront
 
