@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import {
-  buildCsv, buildReportHtml, describeFilters, downloadTextFile, openPrintableReport, summarize,
+  buildCsv, buildReportHtml, describeFilters, downloadTextFile, openPrintableReport, orderKpis, summarize,
 } from '../lib/reports'
 
 const money = (amount) =>
@@ -10,6 +10,7 @@ const money = (amount) =>
 export default function ReportDialog({ orders, filters, onClose }) {
   const [message, setMessage] = useState('')
   const summary = summarize(orders)
+  const kpis = orderKpis(orders)
   const filterText = describeFilters(filters)
 
   const downloadCsv = () => {
@@ -40,8 +41,11 @@ export default function ReportDialog({ orders, filters, onClose }) {
           <p className="text-xs font-black uppercase tracking-[0.14em] text-blue-200">Filters</p>
           <p className="mt-1 text-sm">{filterText.length ? filterText.join(' · ') : 'None (all orders)'}</p>
           <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-            <div><p className="text-blue-200">Orders</p><p className="text-xl font-black">{summary.orderCount}</p></div>
-            <div><p className="text-blue-200">Sales (confirmed payments)</p><p className="text-xl font-black">PHP {money(summary.sales)}</p></div>
+            <div><p className="text-blue-200">Orders</p><p className="text-xl font-black">{kpis.orders}</p></div>
+            <div><p className="text-blue-200">Sales (confirmed payments)</p><p className="text-xl font-black">PHP {money(kpis.sales)}</p></div>
+            <div><p className="text-blue-200">Items sold</p><p className="text-xl font-black">{kpis.units}</p></div>
+            <div><p className="text-blue-200">Average order</p><p className="text-xl font-black">PHP {money(kpis.average)}</p></div>
+            <div className="col-span-2"><p className="text-blue-200">Needs attention</p><p className="text-xl font-black">{kpis.toVerify} to verify · {kpis.toPrepare} to prepare</p></div>
           </div>
           {Object.keys(summary.byStatus).length > 0 && (
             <ul className="mt-3 flex flex-wrap gap-2 text-xs">

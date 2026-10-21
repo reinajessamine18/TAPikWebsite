@@ -121,6 +121,26 @@ export function summarize(orders) {
   return { orderCount: orders.length, sales, byStatus }
 }
 
+// Headline numbers for the Orders tab, for whichever orders are passed in (usually the filtered ones).
+export function orderKpis(orders) {
+  const paid = orders.filter((order) => order.paymentStatus === 'Paid' && displayOrderStatus(order.status) !== 'Cancelled')
+  const sales = paid.reduce((sum, order) => sum + (Number(order.total) || 0), 0)
+  const units = orders.filter(isActiveOrder).reduce(
+    (sum, order) => sum + (order.items || []).reduce((count, item) => count + (Number(item.qty) || 1), 0),
+    0
+  )
+  const countStatus = (status) => orders.filter((order) => displayOrderStatus(order.status) === status).length
+  return {
+    orders: orders.length,
+    sales,
+    paidOrders: paid.length,
+    average: paid.length ? sales / paid.length : 0,
+    units,
+    toVerify: countStatus('Payment submitted'),
+    toPrepare: countStatus('Confirmed payment') + countStatus('Being prepared'),
+  }
+}
+
 const money = (amount) =>
   (Number(amount) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
@@ -167,7 +187,15 @@ const escapeHtml = (value) =>
 
 export function buildReportHtml(orders, filters) {
   const summary = summarize(orders)
+  const kpis = orderKpis(orders)
   const filterText = describeFilters(filters)
+  const kpiCards = [
+    ['Orders', kpis.orders],
+    ['Sales (confirmed payments)', `PHP ${money(kpis.sales)}`],
+    ['Items sold', kpis.units],
+    ['Average order', `PHP ${money(kpis.average)}`],
+    ['Needs attention', `${kpis.toVerify} to verify, ${kpis.toPrepare} to prepare`],
+  ].map(([label, value]) => `<div class="kpi"><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong></div>`).join('')
   const topTable = (title, rows) => `
     <h3>${escapeHtml(title)}</h3>
     ${rows.length ? `<table><thead><tr><th>Item</th><th>Units</th><th>Orders</th></tr></thead><tbody>
@@ -195,17 +223,16 @@ export function buildReportHtml(orders, filters) {
   .muted{color:#475569}table{width:100%;border-collapse:collapse;margin-top:6px}
   th,td{padding:6px 8px;border-bottom:1px solid #cbd5e1;text-align:left;vertical-align:top}
   th{background:#eff6ff}.num{text-align:right;white-space:nowrap}
-  .stats{display:flex;gap:28px;margin-top:10px}.stats strong{display:block;font-size:18px}
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:10px}
+  .kpi{border:1px solid #cbd5e1;border-radius:6px;padding:8px 10px}
+  .kpi span{display:block;color:#475569;font-size:11px}.kpi strong{display:block;margin-top:2px;font-size:15px}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:24px}
   @media print{body{margin:12mm}tr{page-break-inside:avoid}}
 </style></head><body>
 <h1>TAPik sales report</h1>
 <p class="muted">Generated ${escapeHtml(new Date().toLocaleString())}</p>
 <p><strong>Filters:</strong> ${filterText.length ? escapeHtml(filterText.join(' · ')) : 'None (all orders)'}</p>
-<div class="stats">
-  <div><strong>${summary.orderCount}</strong>Orders</div>
-  <div><strong>PHP ${money(summary.sales)}</strong>Sales from confirmed payments</div>
-</div>
+<div class="kpis">${kpiCards}</div>
 <h2>Orders by status</h2>
 <table><tbody>${statusRows || '<tr><td class="muted">No orders.</td></tr>'}</tbody></table>
 <h2>Most ordered</h2>

@@ -4,7 +4,7 @@ import { api, downloadReceipt } from '../services/api'
 import { displayOrderStatus, orderStatusColor, paymentLabel, ORDER_STATUSES, FULFILLMENT_STATUSES } from '../lib/orderStatus'
 import { SHAPES, CHAINS, METRO_MANILA_CITIES } from '../lib/pricing'
 import { getBarangays } from '../data/metroManila'
-import { ALL_STATUSES, EMPTY_FILTERS, activeFilterCount, filterChips, filterOrders, topItems } from '../lib/reports'
+import { ALL_STATUSES, EMPTY_FILTERS, activeFilterCount, filterChips, filterOrders, orderKpis, topItems } from '../lib/reports'
 import { itemKey, stockLevel, useInventory } from '../lib/inventory'
 import PaymentReview from '../components/PaymentReview'
 import OrderDetails from '../components/OrderDetails'
@@ -210,6 +210,7 @@ export default function Admin() {
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
   const filterCount = activeFilterCount(filters)
   const chips = filterChips(filters)
+  const kpis = orderKpis(filteredOrders)
   const advancedCount = [filters.city, filters.barangay, filters.shape, filters.chain].filter(Boolean).length
   const topShapes = topItems(orders, 'shape', includeInactive)
   const topChains = topItems(orders, 'chain', includeInactive)
@@ -221,6 +222,33 @@ export default function Admin() {
   const lowStockItems = inventoryRows.filter((item) => item.row && stockLevel(item.row) !== 'ok')
   const reviewOrder = orders.find((order) => order.id === reviewOrderId)
   const detailsOrder = orders.find((order) => order.id === detailsOrderId)
+
+  const itemCountOf = (order) => (order.items || []).reduce((sum, item) => sum + (Number(item.qty) || 1), 0)
+
+  // The Payment and Status cells, used by both the desktop table and the phone cards.
+  const renderPaymentCell = (order, status) => (
+    <>
+        <span className={`tapik-status-badge rounded-md px-2 py-1 text-xs ${order.paymentStatus === 'Paid' ? 'tapik-status-confirmed' : order.paymentStatus === 'Rejected' ? 'tapik-status-cancelled' : order.paymentStatus === 'Submitted' ? 'tapik-status-submitted' : 'tapik-status-pending'}`}>{paymentLabel(order)}</span>
+        {status === 'Payment submitted' && <button type="button" onClick={() => setReviewOrderId(order.id)} className="mt-2 block rounded-lg bg-yellow-300 px-3 py-1.5 text-xs font-bold text-slate-950">Verify payment</button>}
+        {order.duplicateProof && <p className="mt-1 text-xs font-bold text-rose-200">⚠ Same proof reused</p>}
+      </>
+  )
+
+  const renderStatusCell = (order, status) => (
+    <>
+        {order.paymentStatus === 'Paid' ? (
+          <select value={status} onChange={(event) => updateOrderStatus(order, event.target.value)} aria-label={`Status for ${order.id}`} className={`tapik-status-select w-full ${orderStatusColor(order.status)}`}>
+            {status === 'Confirmed payment' && <option>Confirmed payment</option>}
+            {FULFILLMENT_STATUSES.map((item) => <option key={item}>{item}</option>)}
+          </select>
+        ) : (
+          <div>
+            <span className={`tapik-status-badge rounded-md px-2 py-1 text-xs ${orderStatusColor(order.status)}`}>{status}</span>
+            {status !== 'Cancelled' && <button type="button" onClick={() => updateOrderStatus(order, 'Cancelled')} className="mt-2 block text-xs text-rose-200 underline">Cancel order</button>}
+          </div>
+        )}
+      </>
+  )
 
   const renderInventoryTable = (type, title) => (
     <section className="tapik-surface rounded-xl border border-white/25 p-4 sm:p-5">
@@ -383,7 +411,7 @@ export default function Admin() {
               </section>
 
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(260px,0.8fr)]">
-                <section className="tapik-surface rounded-xl border border-white/25 p-5">
+                <section className="tapik-surface min-w-0 rounded-xl border border-white/25 p-5">
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <div><h3 className="text-lg font-black">Recent orders</h3><p className="text-sm text-blue-200">Latest activity from your storefront</p></div>
                     <button type="button" onClick={() => goToTab('Orders')} className="rounded-lg border border-white/20 px-3 py-2 text-sm font-bold hover:bg-white/10">All orders</button>
@@ -398,7 +426,7 @@ export default function Admin() {
                   )}
                 </section>
 
-                <section className="tapik-surface rounded-xl border border-white/25 p-5">
+                <section className="tapik-surface min-w-0 rounded-xl border border-white/25 p-5">
                   <h3 className="text-lg font-black">Order status</h3>
                   <p className="mb-4 text-sm text-blue-200">Current fulfillment breakdown</p>
                   <div className="space-y-3">
@@ -417,6 +445,22 @@ export default function Admin() {
           )}
 
           {tab === 'Orders' && (
+            <div className="space-y-5">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+              {[
+                { label: 'Orders', value: kpis.orders, note: filterCount ? `of ${orders.length} in total` : 'All orders' },
+                { label: 'Sales', value: `PHP ${money(kpis.sales)}`, note: `${kpis.paidOrders} paid order${kpis.paidOrders === 1 ? '' : 's'}` },
+                { label: 'Items sold', value: kpis.units, note: 'Cancelled and rejected not counted' },
+                { label: 'Average order', value: `PHP ${money(kpis.average)}`, note: 'Per paid order' },
+                { label: 'Needs attention', value: kpis.toVerify + kpis.toPrepare, note: `${kpis.toVerify} to verify · ${kpis.toPrepare} to prepare` },
+              ].map((metric) => (
+                <article key={metric.label} className="tapik-surface rounded-xl border border-white/25 p-4">
+                  <p className="text-sm font-semibold text-blue-100">{metric.label}</p>
+                  <p className="mt-2 break-words text-2xl font-black text-white">{metric.value}</p>
+                  <p className="mt-1 text-xs text-blue-200">{metric.note}</p>
+                </article>
+              ))}
+            </div>
             <section className="tapik-surface rounded-xl border border-white/25 p-4 sm:p-5">
               <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
                 <div><h3 className="text-lg font-black">Order management</h3><p className="text-sm text-blue-200">Open an order to see the customer, items, payment proof and receipt.</p></div>
@@ -458,44 +502,54 @@ export default function Admin() {
               )}
               {lastSyncedAt && <p className="mb-3 text-xs text-blue-200">Last synced {lastSyncedAt.toLocaleTimeString()}</p>}
               {filteredOrders.length === 0 ? <p className="py-10 text-center text-blue-200">{orders.length ? 'No orders match these filters.' : 'No orders have been placed yet.'}</p> : (
-                <div className="overflow-x-auto">
+                <>
+                <div className="space-y-3 md:hidden">
+                  {filteredOrders.map((order) => {
+                    const status = displayOrderStatus(order.status)
+                    const itemCount = itemCountOf(order)
+                    return (
+                      <article key={order.id} className="rounded-xl border border-white/15 bg-white/5 p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="break-all text-sm font-bold">{order.id}</p>
+                            <p className="text-sm text-blue-100">{order.customer?.name || 'Customer'}</p>
+                          </div>
+                          <p className="shrink-0 text-sm font-bold">PHP {money(order.total)}</p>
+                        </div>
+                        <p className="mt-1 text-xs text-blue-200">{order.date ? new Date(order.date).toLocaleDateString() : '—'} · {itemCount} item{itemCount === 1 ? '' : 's'}</p>
+                        <div className="mt-3 grid grid-cols-2 gap-3">
+                          <div><p className="mb-1 text-xs uppercase text-blue-200">Payment</p>{renderPaymentCell(order, status)}</div>
+                          <div><p className="mb-1 text-xs uppercase text-blue-200">Status</p>{renderStatusCell(order, status)}</div>
+                        </div>
+                        <button type="button" onClick={() => setDetailsOrderId(order.id)} className="mt-3 w-full rounded-lg border border-white/25 px-3 py-2 text-sm font-bold hover:bg-white/10">View order</button>
+                      </article>
+                    )
+                  })}
+                </div>
+                <div className="hidden overflow-x-auto md:block">
                   <table className="w-full min-w-[860px] text-left text-sm">
                     <thead className="border-b border-white/15 text-xs uppercase text-blue-200"><tr><th className="px-3 py-3">Order</th><th className="px-3 py-3">Date</th><th className="px-3 py-3">Items</th><th className="px-3 py-3">Total</th><th className="px-3 py-3">Payment</th><th className="px-3 py-3">Status</th><th className="px-3 py-3" /></tr></thead>
                     <tbody>{filteredOrders.map((order) => {
                       const status = displayOrderStatus(order.status)
-                      const itemCount = (order.items || []).reduce((sum, item) => sum + (Number(item.qty) || 1), 0)
+                      const itemCount = itemCountOf(order)
                       return (
                         <tr key={order.id} className="border-b border-white/10 align-middle last:border-0">
                           <td className="px-3 py-3"><p className="break-all font-bold">{order.id}</p><p className="text-blue-100">{order.customer?.name || 'Customer'}</p></td>
                           <td className="whitespace-nowrap px-3 py-3">{order.date ? new Date(order.date).toLocaleDateString() : '—'}</td>
                           <td className="whitespace-nowrap px-3 py-3">{itemCount} item{itemCount === 1 ? '' : 's'}</td>
                           <td className="whitespace-nowrap px-3 py-3 font-bold">PHP {money(order.total)}</td>
-                          <td className="px-3 py-3">
-                            <span className={`tapik-status-badge rounded-md px-2 py-1 text-xs ${order.paymentStatus === 'Paid' ? 'tapik-status-confirmed' : order.paymentStatus === 'Rejected' ? 'tapik-status-cancelled' : order.paymentStatus === 'Submitted' ? 'tapik-status-submitted' : 'tapik-status-pending'}`}>{paymentLabel(order)}</span>
-                            {status === 'Payment submitted' && <button type="button" onClick={() => setReviewOrderId(order.id)} className="mt-2 block rounded-lg bg-yellow-300 px-3 py-1.5 text-xs font-bold text-slate-950">Verify payment</button>}
-                            {order.duplicateProof && <p className="mt-1 text-xs font-bold text-rose-200">⚠ Same proof reused</p>}
-                          </td>
-                          <td className="px-3 py-3">
-                            {order.paymentStatus === 'Paid' ? (
-                              <select value={status} onChange={(event) => updateOrderStatus(order, event.target.value)} aria-label={`Status for ${order.id}`} className={`tapik-status-select w-full ${orderStatusColor(order.status)}`}>
-                                {status === 'Confirmed payment' && <option>Confirmed payment</option>}
-                                {FULFILLMENT_STATUSES.map((item) => <option key={item}>{item}</option>)}
-                              </select>
-                            ) : (
-                              <div>
-                                <span className={`tapik-status-badge rounded-md px-2 py-1 text-xs ${orderStatusColor(order.status)}`}>{status}</span>
-                                {status !== 'Cancelled' && <button type="button" onClick={() => updateOrderStatus(order, 'Cancelled')} className="mt-2 block text-xs text-rose-200 underline">Cancel order</button>}
-                              </div>
-                            )}
-                          </td>
+                          <td className="px-3 py-3">{renderPaymentCell(order, status)}</td>
+                          <td className="px-3 py-3">{renderStatusCell(order, status)}</td>
                           <td className="px-3 py-3 text-right"><button type="button" onClick={() => setDetailsOrderId(order.id)} className="rounded-lg border border-white/25 px-3 py-1.5 text-xs font-bold hover:bg-white/10">View</button></td>
                         </tr>
                       )
                     })}</tbody>
                   </table>
                 </div>
+                </>
               )}
             </section>
+            </div>
           )}
 
           {tab === 'Inventory' && (

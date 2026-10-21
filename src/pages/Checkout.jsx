@@ -207,9 +207,9 @@ export default function Checkout({ cart, setCart, setPage, account }) {
           ))}
           <div className="border-t border-white/20 pt-2 mt-2 space-y-1 text-sm">
             <div className="flex justify-between"><span>Subtotal</span><span>PHP {subtotal}</span></div>
-            <div className="flex justify-between">
+            <div className="flex justify-between gap-3">
               <span>Shipping</span>
-              <span>{hasCity ? `PHP ${shipping}` : 'Select a city to see the shipping fee'}</span>
+              <span className="text-right">{hasCity ? `PHP ${shipping}` : 'Select a city to see the shipping fee'}</span>
             </div>
             <div className="flex justify-between font-bold text-lg pt-2 border-t border-white/20"><span>Total</span><span>PHP {total}</span></div>
           </div>

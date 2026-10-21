@@ -206,7 +206,34 @@ textarea:focus-visible {
   display: block;
   width: auto;
   height: 50px;
-  object-fit: contain;
+  aspect-ratio: 8 / 1;
+  object-fit: cover;
+  object-position: left center;
+}
+
+.tapik-nav-toggle {
+  display: none;
+  position: relative;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  border-radius: 12px;
+  color: #fff;
+  background: transparent;
+}
+
+.tapik-nav-toggle:hover {
+  background: #65a6c2;
+}
+
+.tapik-nav-toggle .tapik-cart-count {
+  position: absolute;
+  top: -7px;
+  right: -7px;
 }
 
 .tapik-brand-tagline {
@@ -367,54 +394,58 @@ textarea:focus-visible {
 
 /* Small screens */
 
+/* Tablet and phone: the menu tabs move into a dropdown opened by the menu button. */
+@media (max-width: 1100px) {
+  .tapik-navbar {
+    overflow: visible;
+  }
+
+  .tapik-navbar-inner {
+    gap: 10px;
+  }
+
+  .tapik-auth-actions {
+    margin-left: auto;
+  }
+
+  .tapik-nav-toggle {
+    display: inline-flex;
+  }
+
+  .tapik-navigation {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 4px;
+    padding: 10px clamp(16px, 5.5vw, 80px) 14px;
+    background: #4f94b2;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 12px 18px rgba(30, 72, 88, 0.28);
+  }
+
+  .tapik-navigation.is-open {
+    display: flex;
+  }
+
+  .tapik-navigation .tapik-nav-link {
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-radius: 12px;
+    font-size: 16px;
+  }
+}
+
 @media (max-width: 760px) {
   .tapik-app {
     background-attachment: scroll;
   }
 
   .tapik-navbar-inner {
-    flex-direction: row;
-    align-items: center;
-    gap: 4px;
-    padding: 6px 8px;
-  }
-
-  .tapik-brand {
-    justify-content: flex-start;
-    gap: 6px;
-  }
-
-  .tapik-brand-logo {
-    width: 58px;
-    height: 28px;
-  }
-
-  .tapik-brand-tagline {
-    white-space: normal;
-    font-size: 13px;
-  }
-
-  .tapik-navigation {
-    flex: 1 1 auto;
-    min-width: 0;
-    justify-content: space-evenly;
-    gap: 0;
-  }
-
-  .tapik-nav-link {
-    min-width: 0;
-    gap: 3px;
-    padding: 6px 3px;
-    font-size: 10px;
-  }
-
-  .tapik-auth-actions {
-    gap: 3px;
-  }
-
-  .tapik-auth-button {
-    padding: 6px 5px;
-    font-size: 9px;
+    padding: 6px 12px;
   }
 
   .tapik-cart-count {
@@ -422,6 +453,20 @@ textarea:focus-visible {
     height: 17px;
     padding: 0 3px;
     font-size: 10px;
+  }
+
+  .tapik-brand-logo {
+    height: 34px;
+    aspect-ratio: 3.5 / 1;
+  }
+
+  .tapik-auth-actions {
+    gap: 5px;
+  }
+
+  .tapik-auth-button {
+    padding: 7px 9px;
+    font-size: 12px;
   }
 
   .tapik-admin-navbar {
