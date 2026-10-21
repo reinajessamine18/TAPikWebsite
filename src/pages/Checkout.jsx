@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { calculateShippingFee, METRO_MANILA_CITIES } from '../lib/pricing'
 import { getBarangays } from '../data/metroManila'
 import { saveOrders, loadOrders, upsertOrders, loadDeliveryDetails, saveDeliveryDetails, newId } from '../lib/storage'
-import { api, downloadReceipt } from '../services/api'
+import { api } from '../services/api'
 import { displayOrderStatus, PAYABLE_STATUSES } from '../lib/orderStatus'
 import PaymentPanel from '../components/PaymentPanel'
 
@@ -32,7 +32,14 @@ export default function Checkout({ cart, setCart, setPage, account }) {
   const [success, setSuccess] = useState(null)
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
-  const [receiptError, setReceiptError] = useState('')
+
+  // Warn before the tab is closed or refreshed while the order is still being saved.
+  useEffect(() => {
+    if (!submitting) return undefined
+    const warn = (event) => { event.preventDefault(); event.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [submitting])
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const weight = cart.reduce((s, i) => s + (i.weightGrams || 50) * i.qty, 0)
@@ -48,15 +55,6 @@ export default function Checkout({ cart, setCart, setPage, account }) {
     setForm(next)
     saveDeliveryDetails(account.id, next)
     setSavedDetails(next)
-  }
-
-  const handleReceiptDownload = async () => {
-    try {
-      setReceiptError('')
-      await downloadReceipt(success.id)
-    } catch (error) {
-      setReceiptError(`Receipt download failed: ${error.message}`)
-    }
   }
 
   const submit = async (e) => {
@@ -86,15 +84,13 @@ export default function Checkout({ cart, setCart, setPage, account }) {
     if (api.isConfigured()) {
       try {
         const result = await api.createOrder(order)
-        if (!result.ok || !result.orderId || !result.receiptURL || !result.receiptNumber) {
-          throw new Error(result.error || 'Apps Script did not confirm that the order and downloadable receipt were saved.')
+        if (!result.ok || !result.orderId) {
+          throw new Error(result.error || 'Apps Script did not confirm that the order was saved.')
         }
         order.id = result.orderId
         order.trackingNumber = result.trackingNumber
         order.courier = 'J&T Express'
         order.isSimulated = true
-        order.receiptNumber = result.receiptNumber
-        order.receiptURL = result.receiptURL
         order.savedToAppsScript = true
       } catch (error) {
         setSubmitError(`The order could not be saved to the order database. Your cart is unchanged. ${error.message}`)
@@ -110,44 +106,34 @@ export default function Checkout({ cart, setCart, setPage, account }) {
   }
 
   if (success) {
+    const needsPayment = PAYABLE_STATUSES.includes(displayOrderStatus(success.status))
     return (
-      <div className="min-h-screen text-white flex items-center justify-center px-4 py-10">
-        <div className="tapik-surface rounded-3xl border border-white/25 p-8 max-w-2xl w-full text-center">
-          <div className="text-3xl mb-3 text-green-300">Order placed</div>
-          <h2 className="text-2xl font-bold">
-            {PAYABLE_STATUSES.includes(displayOrderStatus(success.status)) ? 'One more step: pay for your order' : 'Payment submitted'}
-          </h2>
-          <p className="text-blue-100 mt-2">
-            Thank you, {success.customer.name}. {PAYABLE_STATUSES.includes(displayOrderStatus(success.status))
-              ? 'Your order is saved. Scan the QR code, then upload your proof of payment. You can also do this later from Your orders.'
-              : 'We will verify your payment and start preparing your order.'}
-          </p>
-          {PAYABLE_STATUSES.includes(displayOrderStatus(success.status)) && (
-            <div className="mt-5">
-              <PaymentPanel
-                order={success}
-                account={account}
-                onUpdated={(updated) => { upsertOrders([updated]); setSuccess(updated) }}
-              />
+      <div className="min-h-screen text-white">
+        <div className="fixed inset-0 z-[99999] flex items-start justify-center overflow-y-auto bg-black/80 p-4 backdrop-blur-sm sm:items-center">
+          <div role="dialog" aria-modal="true" aria-labelledby="order-placed-title" className="tapik-surface my-auto w-full max-w-2xl rounded-3xl border border-white/25 p-6 text-center sm:p-8">
+            <div className="mb-2 text-3xl text-green-300">Order placed</div>
+            <h2 id="order-placed-title" className="text-2xl font-bold">
+              {needsPayment ? 'One more step: pay for your order' : 'Payment submitted'}
+            </h2>
+            <p className="mt-2 text-blue-100">
+              Thank you, {success.customer.name}.{' '}
+              {needsPayment
+                ? 'Scan the QR code, then upload your proof of payment. You can also pay later from Your orders.'
+                : 'We will verify your payment, then start preparing your order. Your receipt will be available in Your orders once the payment is confirmed.'}
+            </p>
+            {needsPayment && (
+              <div className="mt-5">
+                <PaymentPanel
+                  order={success}
+                  account={account}
+                  onUpdated={(updated) => { upsertOrders([updated]); setSuccess(updated) }}
+                />
+              </div>
+            )}
+            <div className="mt-6 flex flex-wrap justify-center gap-3">
+              <button type="button" onClick={() => setPage('home')} className="rounded-full bg-yellow-400 px-5 py-2 font-bold text-blue-900">Home</button>
+              <button type="button" onClick={() => setPage('customize')} className="rounded-full border border-yellow-400 px-5 py-2 font-bold text-yellow-400">Continue customizing</button>
             </div>
-          )}
-          <div className="tapik-surface mt-4 rounded-xl border border-white/25 p-4 text-left text-sm space-y-1">
-            <div><strong>Order ID:</strong> {success.id}</div>
-            <div><strong>Total:</strong> PHP {success.total}</div>
-            <div><strong>Status:</strong> {success.status}</div>
-            {success.receiptNumber && <div><strong>Receipt No.:</strong> {success.receiptNumber}</div>}
-          </div>
-          {success.receiptURL ? (
-            <button type="button" onClick={handleReceiptDownload} className="mt-5 inline-block rounded-full bg-white px-5 py-2 font-bold text-blue-900">
-              Download PDF receipt
-            </button>
-          ) : (
-            <p className="mt-4 text-sm text-blue-100">Connect the order database to generate and store a downloadable receipt.</p>
-          )}
-          {receiptError && <p role="alert" className="mt-3 text-sm text-rose-100">{receiptError}</p>}
-          <div className="mt-5 flex gap-3 justify-center">
-            <button onClick={() => setPage('orders')} className="bg-yellow-400 text-blue-900 font-bold px-5 py-2 rounded-full">View orders</button>
-            <button onClick={() => setPage('home')} className="border border-yellow-400 text-yellow-400 font-bold px-5 py-2 rounded-full">Home</button>
           </div>
         </div>
       </div>
@@ -167,6 +153,15 @@ export default function Checkout({ cart, setCart, setPage, account }) {
 
   return (
     <div className="min-h-screen text-white">
+      {submitting && (
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="alertdialog" aria-modal="true" aria-live="assertive" aria-labelledby="saving-order-title">
+          <div className="tapik-surface w-full max-w-sm rounded-3xl border border-white/25 p-8 text-center">
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-white/25 border-t-yellow-400" />
+            <h2 id="saving-order-title" className="text-xl font-bold">Saving your order…</h2>
+            <p className="mt-2 text-sm text-blue-100">This can take a few seconds while we save your order and design. Please don't close or refresh this page.</p>
+          </div>
+        </div>
+      )}
       <div className="max-w-5xl mx-auto px-4 py-10 grid md:grid-cols-2 gap-6">
         <form onSubmit={submit} className="tapik-surface rounded-2xl border border-white/25 p-6 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">

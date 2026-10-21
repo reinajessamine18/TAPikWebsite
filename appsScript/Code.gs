@@ -7,7 +7,7 @@ const PROOF_FOLDER_NAME = 'TAPik Payment Proofs'
 // Optional Orders columns. They are added automatically when missing.
 const ORDER_EXTRA_HEADERS = [
   'ReceiptNumber', 'ReceiptURL', 'Landmark', 'Barangay', 'City',
-  'PaymentReference', 'ProofURL', 'PaymentSubmittedAt', 'PaymentVerifiedAt', 'PaymentRejectReason'
+  'ProofURL', 'ProofHash', 'PaymentSubmittedAt', 'PaymentVerifiedAt', 'PaymentRejectReason'
 ]
 
 // Statuses an admin may pick by hand. Payment statuses only change through
@@ -222,19 +222,9 @@ function createOrder(data) {
       imageURL: saveDesignImage(item.image || ''),
       nfcLink: item.nfcLink || ''
     }))
-    const receiptNumber = existingOrder.ReceiptNumber || existingNotes.receiptNumber || 'RCP-' + orderId
-    const receiptURL = existingOrder.ReceiptURL || existingNotes.receiptURL || createOrderReceipt({
-      receiptNumber: receiptNumber,
-      orderId: orderId,
-      date: data.date ? new Date(data.date) : now,
-      customer: customer,
-      items: items,
-      subtotal: data.subtotal,
-      shipping: shippingFee,
-      total: orderTotal,
-      paymentMethod: paymentMethod,
-      paymentStatus: paymentStatus
-    })
+    // The receipt is issued by verifyPayment once the payment is confirmed, so a new order has none.
+    const receiptNumber = existingOrder.ReceiptNumber || existingNotes.receiptNumber || ''
+    const receiptURL = existingOrder.ReceiptURL || existingNotes.receiptURL || ''
 
     upsertByKey('Customers', 'CustomerID', customerId, {
       CustomerID: customerId,
@@ -259,7 +249,7 @@ function createOrder(data) {
       Landmark: customer.landmark || '',
       Barangay: customer.barangay || '',
       City: customer.city || '',
-      PaymentReference: existingOrder.PaymentReference || '',
+      ProofHash: existingOrder.ProofHash || '',
       ProofURL: existingOrder.ProofURL || '',
       PaymentSubmittedAt: existingOrder.PaymentSubmittedAt || '',
       PaymentVerifiedAt: existingOrder.PaymentVerifiedAt || '',
@@ -397,26 +387,22 @@ function submitPaymentProof(data) {
       return { ok: false, error: 'This order is not waiting for payment.' }
     }
 
-    const reference = String(data.reference || '').trim().toUpperCase()
-    if (!/^[A-Z0-9-]{6,30}$/.test(reference)) {
-      return { ok: false, error: 'Enter the payment reference number (6-30 letters, numbers, or dashes).' }
-    }
     if (!data.proofImage || String(data.proofImage).indexOf('data:image/') !== 0) {
       return { ok: false, error: 'Upload a screenshot or photo of your proof of payment.' }
     }
 
-    const proofURL = saveProofImage(data.proofImage, orderId)
+    const proof = saveProofImage(data.proofImage, orderId)
     updateOrderRow(orderId, {
       OrderStatus: 'Payment submitted',
       PaymentStatus: 'Submitted',
-      PaymentReference: reference,
-      ProofURL: proofURL,
+      ProofURL: proof.url,
+      ProofHash: proof.hash,
       PaymentSubmittedAt: new Date(),
       PaymentVerifiedAt: '',
       PaymentRejectReason: ''
     })
     syncShipmentStatus(orderId, 'Payment submitted')
-    return { ok: true, status: 'Payment submitted', paymentStatus: 'Submitted', paymentReference: reference }
+    return { ok: true, status: 'Payment submitted', paymentStatus: 'Submitted' }
   } finally {
     lock.releaseLock()
   }
@@ -447,6 +433,29 @@ function verifyPayment(data) {
     const fields = confirmed
       ? { OrderStatus: 'Confirmed payment', PaymentStatus: 'Paid', PaymentVerifiedAt: new Date(), PaymentRejectReason: '' }
       : { OrderStatus: 'Payment rejected', PaymentStatus: 'Rejected', PaymentRejectReason: reason }
+
+    // Issue the receipt before saving the decision, so a Drive error cannot leave a paid order without one.
+    let receiptNumber = ''
+    let receiptURL = ''
+    if (confirmed) {
+      const paidOrder = buildOrders('').find((entry) => entry.id === String(data.orderId))
+      receiptNumber = 'RCP-' + paidOrder.id
+      receiptURL = createOrderReceipt({
+        receiptNumber: receiptNumber,
+        orderId: paidOrder.id,
+        date: new Date(),
+        customer: paidOrder.customer,
+        items: paidOrder.items,
+        subtotal: paidOrder.subtotal,
+        shipping: paidOrder.shipping,
+        total: paidOrder.total,
+        paymentMethod: paidOrder.paymentMethod,
+        paymentStatus: 'Paid'
+      })
+      fields.ReceiptNumber = receiptNumber
+      fields.ReceiptURL = receiptURL
+    }
+
     updateOrderRow(data.orderId, fields)
     syncShipmentStatus(data.orderId, fields.OrderStatus)
     return {
@@ -454,7 +463,9 @@ function verifyPayment(data) {
       status: fields.OrderStatus,
       paymentStatus: fields.PaymentStatus,
       paymentVerifiedAt: confirmed ? fields.PaymentVerifiedAt : '',
-      paymentRejectReason: confirmed ? '' : reason
+      paymentRejectReason: confirmed ? '' : reason,
+      receiptNumber: receiptNumber,
+      receiptURL: receiptURL
     }
   } finally {
     lock.releaseLock()
@@ -515,11 +526,11 @@ function buildOrders(customerId) {
   const customers = sheetToObjects(getSheet('Customers'))
   const shipments = sheetToObjects(getSheet('Shipments'))
 
-  // A payment reference reused on more than one order is a common sign of a faked proof.
-  const referenceCounts = {}
+  // The same proof image on more than one order is a common sign of a faked or reused proof.
+  const proofCounts = {}
   allOrders.forEach((row) => {
-    const reference = String(row.PaymentReference || '')
-    if (reference) referenceCounts[reference] = (referenceCounts[reference] || 0) + 1
+    const hash = String(row.ProofHash || '')
+    if (hash) proofCounts[hash] = (proofCounts[hash] || 0) + 1
   })
 
   return orders.map((row) => {
@@ -528,7 +539,7 @@ function buildOrders(customerId) {
     const shipment = shipments.find((entry) => String(entry.OrderID || '') === orderId) || {}
     const notes = parseOrderNotes(row.Notes)
     const rows = orderItems.filter((entry) => String(entry.OrderID || '') === orderId)
-    const reference = String(row.PaymentReference || '')
+    const proofHash = String(row.ProofHash || '')
 
     return {
       id: orderId,
@@ -539,12 +550,11 @@ function buildOrders(customerId) {
       total: Number(row.TotalAmount) || 0,
       paymentMethod: row.PaymentMethod || '',
       paymentStatus: row.PaymentStatus || 'Pending',
-      paymentReference: reference,
       paymentSubmittedAt: row.PaymentSubmittedAt || '',
       paymentVerifiedAt: row.PaymentVerifiedAt || '',
       paymentRejectReason: row.PaymentRejectReason || '',
       hasProof: Boolean(row.ProofURL),
-      duplicateReference: Boolean(reference) && referenceCounts[reference] > 1,
+      duplicateProof: Boolean(proofHash) && proofCounts[proofHash] > 1,
       status: row.OrderStatus || 'Awaiting payment',
       receiptNumber: row.ReceiptNumber || notes.receiptNumber || '',
       receiptURL: row.ReceiptURL || notes.receiptURL || '',
@@ -706,6 +716,10 @@ function getReceipt(data) {
   const rows = sheet.getDataRange().getValues()
   const row = rows.slice(1).find((values) => String(values[orderColumn]) === orderId)
   if (!row) return { ok: false, error: 'Order not found' }
+  const paymentColumn = headers.indexOf('PaymentStatus')
+  if (paymentColumn < 0 || row[paymentColumn] !== 'Paid') {
+    return { ok: false, error: 'The receipt is available once the payment is confirmed.' }
+  }
   const receiptUrl = String(row[receiptUrlColumn] || '')
   const match = receiptUrl.match(/[?&]id=([^&]+)/) || receiptUrl.match(/\/file\/d\/([^/?]+)/)
   if (!match) return { ok: false, error: 'Stored receipt link is missing a Drive file ID' }
@@ -779,7 +793,16 @@ function saveProofImage(image, orderId) {
   const extension = match[1].split('/')[1].replace(/[^a-zA-Z0-9]/g, '') || 'img'
   const blob = Utilities.newBlob(bytes, match[1], 'proof_' + orderId + '_' + Date.now() + '.' + extension)
   const file = getProofFolder().createFile(blob)
-  return 'https://drive.google.com/file/d/' + file.getId() + '/view'
+  return {
+    url: 'https://drive.google.com/file/d/' + file.getId() + '/view',
+    hash: proofFingerprint(bytes)
+  }
+}
+
+function proofFingerprint(bytes) {
+  return Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, bytes)
+    .map(function (byte) { return ('0' + (byte & 0xff).toString(16)).slice(-2) })
+    .join('')
 }
 
 function saveProduct(data) {

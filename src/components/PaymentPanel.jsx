@@ -3,11 +3,8 @@ import DemoQr from './DemoQr'
 import { api } from '../services/api'
 import { resizeImageToDataUrl } from '../lib/image'
 
-const REFERENCE_PATTERN = /^[A-Za-z0-9-]{6,30}$/
-
-// Shows the demo payment QR and collects the reference number and proof of payment.
+// Shows the demo payment QR and collects the proof of payment.
 export default function PaymentPanel({ order, account, onUpdated }) {
-  const [reference, setReference] = useState('')
   const [proof, setProof] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -31,10 +28,6 @@ export default function PaymentPanel({ order, account, onUpdated }) {
   const submit = async (event) => {
     event.preventDefault()
     if (busy) return
-    if (!REFERENCE_PATTERN.test(reference.trim())) {
-      setError('Enter the reference number from your payment (6-30 letters, numbers, or dashes).')
-      return
-    }
     if (!proof) {
       setError('Upload a screenshot or photo of your proof of payment.')
       return
@@ -48,7 +41,6 @@ export default function PaymentPanel({ order, account, onUpdated }) {
         const result = await api.submitPaymentProof({
           orderId: order.id,
           customerId: account.id,
-          reference: reference.trim(),
           proofImage: proof,
         })
         if (!result.ok) throw new Error(result.error || 'The proof of payment could not be saved.')
@@ -57,7 +49,6 @@ export default function PaymentPanel({ order, account, onUpdated }) {
         ...order,
         status: 'Payment submitted',
         paymentStatus: 'Submitted',
-        paymentReference: reference.trim().toUpperCase(),
         paymentRejectReason: '',
         // Without the order database the proof is kept in this browser only.
         ...(configured ? {} : { proofImage: proof, hasProof: true }),
@@ -86,16 +77,8 @@ export default function PaymentPanel({ order, account, onUpdated }) {
         <ol className="list-decimal space-y-1 pl-5 text-sm text-blue-50">
           <li>Scan the QR code with your e-wallet or banking app.</li>
           <li>Pay the exact amount, then take a screenshot of the confirmation.</li>
-          <li>Enter the reference number and upload the screenshot below.</li>
+          <li>Upload the screenshot below.</li>
         </ol>
-
-        <input
-          value={reference}
-          onChange={(event) => { setReference(event.target.value); setError('') }}
-          placeholder="Payment reference number *"
-          aria-label="Payment reference number"
-          className="w-full rounded-xl border border-white/20 bg-white/5 p-2 text-white placeholder-blue-200"
-        />
 
         <div className="flex flex-wrap items-center gap-3">
           <label className="cursor-pointer rounded-lg border border-white/40 px-4 py-2 text-sm font-bold hover:bg-white/10">

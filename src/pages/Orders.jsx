@@ -97,7 +97,7 @@ export default function Orders({ account }) {
                     <strong>Payment was not accepted.</strong> {o.paymentRejectReason || 'Please check your proof of payment.'} Please upload a new proof below.
                   </div>
                 )}
-                {o.receiptURL && (
+                {o.paymentStatus === 'Paid' && o.receiptURL && (
                   <div className="flex flex-wrap items-center gap-3">
                     {o.receiptNumber && <span><strong>Receipt No.:</strong> {o.receiptNumber}</span>}
                     <button type="button" onClick={() => handleReceiptDownload(o.id)} className="font-bold text-yellow-300 underline">Download receipt PDF</button>

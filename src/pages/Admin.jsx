@@ -185,10 +185,12 @@ export default function Admin() {
   const verifyPayment = async (order, decision, reason) => {
     const confirmed = decision === 'confirm'
     let verifiedAt = new Date().toISOString()
+    let receipt = {}
     if (api.isConfigured()) {
       const result = await api.verifyPayment({ orderId: order.id, decision, reason })
       if (!result.ok) throw new Error(result.error || 'Apps Script rejected the payment decision.')
       verifiedAt = result.paymentVerifiedAt || verifiedAt
+      if (confirmed) receipt = { receiptNumber: result.receiptNumber, receiptURL: result.receiptURL }
     }
     const next = orders.map((item) => item.id === order.id ? {
       ...item,
@@ -196,6 +198,7 @@ export default function Admin() {
       paymentStatus: confirmed ? 'Paid' : 'Rejected',
       paymentVerifiedAt: confirmed ? verifiedAt : '',
       paymentRejectReason: confirmed ? '' : reason,
+      ...receipt,
     } : item)
     setOrders(next)
     saveOrders(next)
@@ -395,12 +398,11 @@ export default function Admin() {
                         <td className="px-4 py-4"><p className="break-words font-bold text-white">{order.id}</p><p className="mt-2 font-semibold">{order.customer?.name || 'Customer'}</p><p className="break-words text-xs text-blue-200">{order.customer?.email || order.customer?.phone || ''}</p><p className="mt-1 break-words text-xs text-blue-200">{order.customer?.address || [order.customer?.street, order.customer?.landmark && `(${order.customer.landmark})`, order.customer?.barangay, order.customer?.city, order.customer?.province].filter(Boolean).join(', ')}</p><p className="mt-2 text-xs text-blue-100">{order.courier || 'J&T Express'} · {order.isSimulated ? 'Simulated' : 'Live'} · Tracking: {order.trackingNumber || 'Not assigned'}</p></td>
                         <td className="px-4 py-4 whitespace-nowrap">{order.date ? new Date(order.date).toLocaleDateString() : '—'}</td>
                         <td className="px-4 py-4"><details className="w-full"><summary className="cursor-pointer text-yellow-200">{(order.items || []).length} item(s)</summary><div className="mt-3 space-y-2">{(order.items || []).map((item, index) => <div key={item.id || index} className="tapik-surface flex min-w-0 gap-3 rounded-lg border border-white/25 p-2">{item.image ? <CustomerArtwork image={item.image} /> : <div className="flex h-28 w-28 shrink-0 items-center justify-center rounded bg-white/10 px-2 text-center text-xs text-blue-200">No uploaded photo</div>}<div className="min-w-0"><p className="break-words font-semibold">{item.shape || item.name || 'Custom keychain'} · {item.chain || 'finish not specified'}</p><p className="text-xs text-blue-100">Qty {item.qty} · PHP {item.price}</p>{item.image && <div className="mt-1 flex flex-wrap gap-3 text-xs"><a href={driveImageUrl(item.image, 'original')} target="_blank" rel="noreferrer" className="text-yellow-200 underline">View original</a><a href={driveImageUrl(item.image, 'download')} target="_blank" rel="noreferrer" className="text-yellow-200 underline">Download</a></div>}{item.nfcLink && <a href={item.nfcLink} target="_blank" rel="noreferrer" className="mt-1 block max-w-full truncate text-xs text-yellow-200 underline">{item.nfcLink}</a>}</div></div>)}</div></details></td>
-                        <td className="px-4 py-4">{order.receiptURL ? <div className="min-w-0"><button type="button" onClick={() => handleReceiptDownload(order)} className="text-left text-yellow-200 underline">Download PDF</button><p className="mt-1 break-words text-xs font-normal text-blue-100">{order.receiptNumber}</p></div> : <span className="text-blue-200">Not available</span>}</td>
+                        <td className="px-4 py-4">{order.paymentStatus === 'Paid' && order.receiptURL ? <div className="min-w-0"><button type="button" onClick={() => handleReceiptDownload(order)} className="text-left text-yellow-200 underline">Download PDF</button><p className="mt-1 break-words text-xs font-normal text-blue-100">{order.receiptNumber}</p></div> : <span className="text-blue-200">After payment is confirmed</span>}</td>
                         <td className="px-4 py-4 whitespace-nowrap font-bold">PHP {Number(order.total || 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}</td>
                         <td className="px-4 py-4">
                           <span className={`tapik-status-badge rounded-md px-2 py-1 text-xs ${order.paymentStatus === 'Paid' ? 'tapik-status-confirmed' : order.paymentStatus === 'Rejected' ? 'tapik-status-cancelled' : order.paymentStatus === 'Submitted' ? 'tapik-status-submitted' : 'tapik-status-pending'}`}>{paymentLabel(order)}</span>
-                          {order.paymentReference && <p className="mt-2 break-all text-xs text-blue-100">Ref: {order.paymentReference}</p>}
-                          {order.duplicateReference && <p className="mt-1 text-xs font-bold text-rose-200">⚠ Reference used on another order</p>}
+                          {order.duplicateProof && <p className="mt-1 text-xs font-bold text-rose-200">⚠ Same proof used on another order</p>}
                           {displayOrderStatus(order.status) === 'Payment submitted' && <button type="button" onClick={() => setReviewOrderId(order.id)} className="mt-2 rounded-lg bg-yellow-300 px-3 py-1.5 text-xs font-bold text-slate-950">Review proof</button>}
                           {displayOrderStatus(order.status) === 'Payment rejected' && order.paymentRejectReason && <p className="mt-1 break-words text-xs text-blue-200">Reason: {order.paymentRejectReason}</p>}
                         </td>

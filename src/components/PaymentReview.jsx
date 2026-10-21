@@ -66,14 +66,13 @@ export default function PaymentReview({ order, onClose, onDecision }) {
 
           <dl className="space-y-3 text-sm">
             <div><dt className="text-blue-200">Amount due</dt><dd className="text-xl font-black">PHP {amount}</dd></div>
-            <div><dt className="text-blue-200">Reference number</dt><dd className="break-all font-bold">{order.paymentReference || '—'}</dd></div>
             <div><dt className="text-blue-200">Submitted</dt><dd>{order.paymentSubmittedAt ? new Date(order.paymentSubmittedAt).toLocaleString() : '—'}</dd></div>
-            {order.duplicateReference && (
+            {order.duplicateProof && (
               <p role="alert" className="rounded-lg border border-rose-300/50 bg-rose-950/40 p-2 font-bold text-rose-100">
-                Warning: this reference number is used on another order.
+                Warning: this same proof image was already submitted for another order.
               </p>
             )}
-            <p className="text-xs text-blue-200">Check that the amount, date and reference on the screenshot match before confirming.</p>
+            <p className="text-xs text-blue-200">Check that the amount, date and reference shown on the screenshot match this order before confirming.</p>
           </dl>
         </div>
 

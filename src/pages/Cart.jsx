@@ -189,14 +189,6 @@ export default function Cart({ cart, setCart, setPage }) {
               ))}
             </div>
 
-            <div className="tapik-summary-section">
-              <h3>Delivery</h3>
-
-              <p className="tapik-shipping-note">
-                Shipping fee is calculated at checkout once you enter your delivery address.
-              </p>
-            </div>
-
             <div className="tapik-summary-total">
               <span>Subtotal</span>
               <strong>{money(subtotal)}</strong>
