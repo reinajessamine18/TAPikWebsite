@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { calculateShippingFee, SHIPPING_BRACKETS } from '../lib/pricing'
+import { calculateShippingFee } from '../lib/pricing'
 import { saveOrders, loadOrders, loadDeliveryDetails, saveDeliveryDetails, newId } from '../lib/storage'
 import { api, downloadReceipt } from '../services/api'
 
@@ -19,7 +19,8 @@ export default function Checkout({ cart, setCart, setPage, account }) {
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const weight = cart.reduce((s, i) => s + (i.weightGrams || 50) * i.qty, 0)
-  const shipping = cart.length ? calculateShippingFee(weight) : 0
+  const hasCity = Boolean(form.city.trim())
+  const shipping = cart.length && hasCity ? calculateShippingFee(weight) : 0
   const total = subtotal + shipping
 
   const update = (key, value) => {
@@ -169,7 +170,7 @@ export default function Checkout({ cart, setCart, setPage, account }) {
           )}
 
           <p className="text-xs text-blue-200">
-            Shipping fees are calculated by package weight: {SHIPPING_BRACKETS.map((b) => `up to ${b.maxKg}kg PHP ${b.fee}`).join(', ')}.
+            The shipping fee is calculated from your delivery address and shown in the order summary.
           </p>
           <button type="submit" disabled={submitting} className="w-full bg-yellow-400 text-blue-900 font-bold py-3 rounded-full disabled:opacity-60">{submitting ? 'Saving order...' : 'Place order'}</button>
         </form>
@@ -184,7 +185,10 @@ export default function Checkout({ cart, setCart, setPage, account }) {
           ))}
           <div className="border-t border-white/20 pt-2 mt-2 space-y-1 text-sm">
             <div className="flex justify-between"><span>Subtotal</span><span>PHP {subtotal}</span></div>
-            <div className="flex justify-between"><span>Shipping</span><span>PHP {shipping}</span></div>
+            <div className="flex justify-between">
+              <span>Shipping</span>
+              <span>{hasCity ? `PHP ${shipping}` : 'Select a city to see the shipping fee'}</span>
+            </div>
             <div className="flex justify-between font-bold text-lg pt-2 border-t border-white/20"><span>Total</span><span>PHP {total}</span></div>
           </div>
         </div>

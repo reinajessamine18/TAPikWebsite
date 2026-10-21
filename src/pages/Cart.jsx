@@ -1,7 +1,6 @@
 
 import React from 'react'
 import KeychainPreview from '../components/KeychainPreview'
-import { calculateShippingFee } from '../lib/pricing'
 import addButton from '../assets/addbutton.png'
 import minusButton from '../assets/minusbutton.png'
 
@@ -35,14 +34,6 @@ export default function Cart({ cart, setCart, setPage }) {
     0
   )
 
-  const weight = cart.reduce(
-    (sum, item) =>
-      sum + (Number(item.weightGrams) || 50) * (Number(item.qty) || 1),
-    0
-  )
-
-  const shipping = cart.length ? calculateShippingFee(weight) : 0
-  const total = subtotal + shipping
   const totalItems = cart.reduce(
     (sum, item) => sum + (Number(item.qty) || 1),
     0
@@ -201,19 +192,14 @@ export default function Cart({ cart, setCart, setPage }) {
             <div className="tapik-summary-section">
               <h3>Delivery</h3>
 
-              <div className="tapik-summary-line">
-                <span>Shipping fee</span>
-                <strong>{money(shipping)}</strong>
-              </div>
-
               <p className="tapik-shipping-note">
-                Package weight: {(weight / 1000).toFixed(2)} kg. Shipping fee is based on package weight.
+                Shipping fee is calculated at checkout once you enter your delivery address.
               </p>
             </div>
 
             <div className="tapik-summary-total">
-              <span>Total</span>
-              <strong>{money(total)}</strong>
+              <span>Subtotal</span>
+              <strong>{money(subtotal)}</strong>
             </div>
 
             <button
