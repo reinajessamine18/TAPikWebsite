@@ -4,7 +4,7 @@ import { api, downloadReceipt } from '../services/api'
 import { displayOrderStatus, orderStatusColor, paymentLabel, ORDER_STATUSES, FULFILLMENT_STATUSES } from '../lib/orderStatus'
 import { SHAPES, CHAINS, METRO_MANILA_CITIES } from '../lib/pricing'
 import { getBarangays } from '../data/metroManila'
-import { ALL_STATUSES, EMPTY_FILTERS, activeFilterCount, filterOrders, topItems } from '../lib/reports'
+import { ALL_STATUSES, EMPTY_FILTERS, activeFilterCount, filterChips, filterOrders, topItems } from '../lib/reports'
 import { itemKey, stockLevel, useInventory } from '../lib/inventory'
 import PaymentReview from '../components/PaymentReview'
 import OrderDetails from '../components/OrderDetails'
@@ -42,6 +42,7 @@ export default function Admin() {
   const [notice, setNotice] = useState('')
   const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [showReport, setShowReport] = useState(false)
+  const [showMoreFilters, setShowMoreFilters] = useState(false)
   const [includeInactive, setIncludeInactive] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState(api.isConfigured() ? 'checking' : 'not-configured')
   const [lastSyncedAt, setLastSyncedAt] = useState(null)
@@ -208,6 +209,8 @@ export default function Admin() {
   const filteredOrders = filterOrders(orders, filters)
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
   const filterCount = activeFilterCount(filters)
+  const chips = filterChips(filters)
+  const advancedCount = [filters.city, filters.barangay, filters.shape, filters.chain].filter(Boolean).length
   const topShapes = topItems(orders, 'shape', includeInactive)
   const topChains = topItems(orders, 'chain', includeInactive)
 
@@ -423,21 +426,33 @@ export default function Admin() {
                   <button type="button" onClick={() => refreshAdminData(true)} disabled={connectionStatus === 'checking'} className="rounded-lg border border-white/20 px-3 py-2 text-sm font-bold hover:bg-white/10 disabled:opacity-50">{connectionStatus === 'checking' ? 'Syncing...' : 'Refresh'}</button>
                 </div>
               </div>
-              <div className="mb-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_190px_auto]">
-                <input type="search" value={filters.search} onChange={(event) => setFilter('search', event.target.value)} placeholder="Search order, customer, email, or phone" className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-blue-200" />
+              <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_190px_240px]">
+                <input type="search" value={filters.search} onChange={(event) => setFilter('search', event.target.value)} placeholder="Search order, customer, email, or phone" className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-blue-200 sm:col-span-2 lg:col-span-1" />
                 <select value={filters.status} onChange={(event) => setFilter('status', event.target.value)} aria-label="Filter by status" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white"><option>{ALL_STATUSES}</option>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select>
-                <button type="button" onClick={() => setFilter('status', filters.status === 'Payment submitted' ? ALL_STATUSES : 'Payment submitted')} className={`rounded-lg border px-3 py-2 text-sm font-bold ${filters.status === 'Payment submitted' ? 'border-yellow-300 bg-yellow-300 text-slate-950' : 'border-white/20 hover:bg-white/10'}`}>To verify ({toVerify})</button>
-              </div>
-              <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                <select value={filters.city} onChange={(event) => setFilter('city', event.target.value)} aria-label="Filter by city" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white"><option value="">City: all</option>{METRO_MANILA_CITIES.map((city) => <option key={city} value={city}>{city}</option>)}</select>
-                <select value={filters.barangay} onChange={(event) => setFilter('barangay', event.target.value)} disabled={!filters.city} aria-label="Filter by barangay" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white disabled:opacity-50"><option value="">{filters.city ? 'Barangay: all' : 'Barangay: pick a city first'}</option>{getBarangays(filters.city).map((barangay) => <option key={barangay} value={barangay}>{barangay}</option>)}</select>
-                <select value={filters.shape} onChange={(event) => setFilter('shape', event.target.value)} aria-label="Filter by shape" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white"><option value="">Shape: all</option>{SHAPES.map((shape) => <option key={shape.id} value={shape.id}>{shape.label}</option>)}</select>
-                <select value={filters.chain} onChange={(event) => setFilter('chain', event.target.value)} aria-label="Filter by chain" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white"><option value="">Chain: all</option>{CHAINS.map((chain) => <option key={chain.id} value={chain.id}>{chain.label}</option>)}</select>
                 <DateRangePicker from={filters.from} to={filters.to} onChange={({ from, to }) => setFilters((current) => ({ ...current, from, to }))} />
               </div>
-              {filterCount > 0 && (
-                <div className="mb-3 flex items-center gap-3 text-sm">
-                  <span className="text-blue-100">{filterCount} filter{filterCount === 1 ? '' : 's'} on</span>
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => setFilter('status', filters.status === 'Payment submitted' ? ALL_STATUSES : 'Payment submitted')} className={`rounded-lg border px-3 py-2 text-sm font-bold ${filters.status === 'Payment submitted' ? 'border-yellow-300 bg-yellow-300 text-slate-950' : 'border-white/20 hover:bg-white/10'}`}>To verify ({toVerify})</button>
+                <button type="button" onClick={() => setShowMoreFilters((open) => !open)} aria-expanded={showMoreFilters} className="rounded-lg border border-white/20 px-3 py-2 text-sm font-bold hover:bg-white/10">
+                  {showMoreFilters ? 'Fewer filters' : 'More filters'}{advancedCount > 0 ? ` (${advancedCount})` : ''}
+                </button>
+              </div>
+              {showMoreFilters && (
+                <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  <select value={filters.city} onChange={(event) => setFilter('city', event.target.value)} aria-label="Filter by city" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white"><option value="">City: all</option>{METRO_MANILA_CITIES.map((city) => <option key={city} value={city}>{city}</option>)}</select>
+                  <select value={filters.barangay} onChange={(event) => setFilter('barangay', event.target.value)} disabled={!filters.city} aria-label="Filter by barangay" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white disabled:opacity-50"><option value="">{filters.city ? 'Barangay: all' : 'Barangay: pick a city first'}</option>{getBarangays(filters.city).map((barangay) => <option key={barangay} value={barangay}>{barangay}</option>)}</select>
+                  <select value={filters.shape} onChange={(event) => setFilter('shape', event.target.value)} aria-label="Filter by shape" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white"><option value="">Shape: all</option>{SHAPES.map((shape) => <option key={shape.id} value={shape.id}>{shape.label}</option>)}</select>
+                  <select value={filters.chain} onChange={(event) => setFilter('chain', event.target.value)} aria-label="Filter by chain" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white"><option value="">Chain: all</option>{CHAINS.map((chain) => <option key={chain.id} value={chain.id}>{chain.label}</option>)}</select>
+                </div>
+              )}
+              {chips.length > 0 && (
+                <div className="mb-3 flex flex-wrap items-center gap-2 text-sm">
+                  {chips.map((chip) => (
+                    <span key={chip.key} className="inline-flex items-center gap-1 rounded-full bg-white/10 py-1 pl-3 pr-1 text-xs">
+                      {chip.label}
+                      <button type="button" onClick={() => setFilters((current) => ({ ...current, ...chip.clear }))} aria-label={`Remove filter: ${chip.label}`} className="rounded-full px-1.5 text-base leading-none hover:bg-white/20">×</button>
+                    </span>
+                  ))}
                   <button type="button" onClick={() => setFilters(EMPTY_FILTERS)} className="rounded-lg border border-white/25 px-3 py-1.5 text-xs font-bold hover:bg-white/10">Clear filters</button>
                 </div>
               )}

@@ -64,23 +64,27 @@ export function activeFilterCount(filters) {
   ].filter(Boolean).length
 }
 
+// The filters in use, one entry each: its text, and what to reset to remove just that filter.
+export function filterChips(filters) {
+  const chips = []
+  if (filters.search.trim()) chips.push({ key: 'search', label: `Search: "${filters.search.trim()}"`, clear: { search: '' } })
+  if (filters.status !== ALL_STATUSES) chips.push({ key: 'status', label: `Status: ${filters.status}`, clear: { status: ALL_STATUSES } })
+  if (filters.city) chips.push({ key: 'city', label: `City: ${filters.city}`, clear: { city: '', barangay: '' } })
+  if (filters.barangay) chips.push({ key: 'barangay', label: `Barangay: ${filters.barangay}`, clear: { barangay: '' } })
+  if (filters.from || filters.to) {
+    const label = filters.from && filters.to
+      ? (filters.from === filters.to ? `Date: ${filters.from}` : `Date: ${filters.from} to ${filters.to}`)
+      : (filters.from ? `Date: from ${filters.from}` : `Date: up to ${filters.to}`)
+    chips.push({ key: 'date', label, clear: { from: '', to: '' } })
+  }
+  if (filters.shape) chips.push({ key: 'shape', label: `Shape: ${labelFor('shape', filters.shape)}`, clear: { shape: '' } })
+  if (filters.chain) chips.push({ key: 'chain', label: `Chain: ${labelFor('chain', filters.chain)}`, clear: { chain: '' } })
+  return chips
+}
+
 // Human-readable list of the filters in use, for the report.
 export function describeFilters(filters) {
-  const parts = []
-  if (filters.search.trim()) parts.push(`Search: "${filters.search.trim()}"`)
-  if (filters.status !== ALL_STATUSES) parts.push(`Status: ${filters.status}`)
-  if (filters.city) parts.push(`City: ${filters.city}`)
-  if (filters.barangay) parts.push(`Barangay: ${filters.barangay}`)
-  if (filters.from && filters.to) {
-    parts.push(filters.from === filters.to ? `Date: ${filters.from}` : `Date: ${filters.from} to ${filters.to}`)
-  } else if (filters.from) {
-    parts.push(`Date: from ${filters.from}`)
-  } else if (filters.to) {
-    parts.push(`Date: up to ${filters.to}`)
-  }
-  if (filters.shape) parts.push(`Shape: ${labelFor('shape', filters.shape)}`)
-  if (filters.chain) parts.push(`Chain: ${labelFor('chain', filters.chain)}`)
-  return parts
+  return filterChips(filters).map((chip) => chip.label)
 }
 
 // Units sold per shape or chain. Cancelled and rejected orders are left out unless asked for.
@@ -166,8 +170,8 @@ export function buildReportHtml(orders, filters) {
   const filterText = describeFilters(filters)
   const topTable = (title, rows) => `
     <h3>${escapeHtml(title)}</h3>
-    ${rows.length ? `<table><thead><tr><th>Item</th><th>Units</th><th>Orders</th><th>Share</th></tr></thead><tbody>
-      ${rows.map((row) => `<tr><td>${escapeHtml(row.label)}</td><td>${row.units}</td><td>${row.orders}</td><td>${row.share}%</td></tr>`).join('')}
+    ${rows.length ? `<table><thead><tr><th>Item</th><th>Units</th><th>Orders</th></tr></thead><tbody>
+      ${rows.map((row) => `<tr><td>${escapeHtml(row.label)}</td><td>${row.units}</td><td>${row.orders}</td></tr>`).join('')}
     </tbody></table>` : '<p class="muted">No orders.</p>'}`
 
   const statusRows = Object.entries(summary.byStatus)
