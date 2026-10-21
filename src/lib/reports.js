@@ -1,0 +1,237 @@
+import { SHAPES, CHAINS } from './pricing'
+import { displayOrderStatus, paymentLabel } from './orderStatus'
+
+export const ALL_STATUSES = 'All statuses'
+
+export const EMPTY_FILTERS = {
+  search: '',
+  status: ALL_STATUSES,
+  city: '',
+  barangay: '',
+  from: '',
+  to: '',
+  shape: '',
+  chain: '',
+}
+
+const pad = (value) => String(value).padStart(2, '0')
+
+// yyyy-mm-dd in the admin's local time, to compare with the date inputs.
+export function localDateKey(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return ''
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+
+const INACTIVE_STATUSES = ['Cancelled', 'Payment rejected']
+export const isActiveOrder = (order) => !INACTIVE_STATUSES.includes(displayOrderStatus(order.status))
+
+const labelFor = (type, id) =>
+  (type === 'shape' ? SHAPES : CHAINS).find((option) => option.id === id)?.label || id || 'Unspecified'
+
+export function filterOrders(orders, filters) {
+  const query = filters.search.trim().toLowerCase()
+  return orders.filter((order) => {
+    const customer = order.customer || {}
+    const items = order.items || []
+
+    if (query) {
+      const searchable = [
+        order.id, customer.name, customer.email, customer.phone,
+        ...items.flatMap((item) => [item.shape, item.name, item.chain, item.nfcLink]),
+      ]
+      if (!searchable.some((value) => String(value || '').toLowerCase().includes(query))) return false
+    }
+    if (filters.status !== ALL_STATUSES && displayOrderStatus(order.status) !== filters.status) return false
+    if (filters.city && customer.city !== filters.city) return false
+    if (filters.barangay && customer.barangay !== filters.barangay) return false
+    if (filters.from || filters.to) {
+      const key = localDateKey(order.date)
+      if (!key) return false
+      if (filters.from && key < filters.from) return false
+      if (filters.to && key > filters.to) return false
+    }
+    if (filters.shape && !items.some((item) => item.shape === filters.shape)) return false
+    if (filters.chain && !items.some((item) => item.chain === filters.chain)) return false
+    return true
+  })
+}
+
+export function activeFilterCount(filters) {
+  return [
+    filters.search.trim(), filters.status !== ALL_STATUSES, filters.city, filters.barangay,
+    filters.from, filters.to, filters.shape, filters.chain,
+  ].filter(Boolean).length
+}
+
+// Human-readable list of the filters in use, for the report.
+export function describeFilters(filters) {
+  const parts = []
+  if (filters.search.trim()) parts.push(`Search: "${filters.search.trim()}"`)
+  if (filters.status !== ALL_STATUSES) parts.push(`Status: ${filters.status}`)
+  if (filters.city) parts.push(`City: ${filters.city}`)
+  if (filters.barangay) parts.push(`Barangay: ${filters.barangay}`)
+  if (filters.from && filters.to) {
+    parts.push(filters.from === filters.to ? `Date: ${filters.from}` : `Date: ${filters.from} to ${filters.to}`)
+  } else if (filters.from) {
+    parts.push(`Date: from ${filters.from}`)
+  } else if (filters.to) {
+    parts.push(`Date: up to ${filters.to}`)
+  }
+  if (filters.shape) parts.push(`Shape: ${labelFor('shape', filters.shape)}`)
+  if (filters.chain) parts.push(`Chain: ${labelFor('chain', filters.chain)}`)
+  return parts
+}
+
+// Units sold per shape or chain. Cancelled and rejected orders are left out unless asked for.
+export function topItems(orders, type, includeInactive = false) {
+  const counted = includeInactive ? orders : orders.filter(isActiveOrder)
+  const totals = new Map()
+  counted.forEach((order) => {
+    const seenInOrder = new Set()
+    ;(order.items || []).forEach((item) => {
+      const id = item[type] || ''
+      const entry = totals.get(id) || { id, label: labelFor(type, id), units: 0, orders: 0 }
+      entry.units += Number(item.qty) || 1
+      if (!seenInOrder.has(id)) {
+        entry.orders += 1
+        seenInOrder.add(id)
+      }
+      totals.set(id, entry)
+    })
+  })
+  const rows = [...totals.values()].sort((a, b) => b.units - a.units || a.label.localeCompare(b.label))
+  const totalUnits = rows.reduce((sum, row) => sum + row.units, 0)
+  return rows.map((row) => ({ ...row, share: totalUnits ? Math.round((row.units / totalUnits) * 100) : 0 }))
+}
+
+export function summarize(orders) {
+  const byStatus = {}
+  orders.forEach((order) => {
+    const status = displayOrderStatus(order.status)
+    byStatus[status] = (byStatus[status] || 0) + 1
+  })
+  const sales = orders
+    .filter((order) => order.paymentStatus === 'Paid' && displayOrderStatus(order.status) !== 'Cancelled')
+    .reduce((sum, order) => sum + (Number(order.total) || 0), 0)
+  return { orderCount: orders.length, sales, byStatus }
+}
+
+const money = (amount) =>
+  (Number(amount) || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+
+const itemSummary = (order) =>
+  (order.items || [])
+    .map((item) => `${labelFor('shape', item.shape)} / ${labelFor('chain', item.chain)} x${Number(item.qty) || 1}`)
+    .join('; ')
+
+const orderAddress = (order) => {
+  const customer = order.customer || {}
+  return [customer.street, customer.barangay, customer.city, customer.province].filter(Boolean).join(', ')
+    || customer.address || ''
+}
+
+const BOM = String.fromCharCode(0xfeff)
+
+const csvCell = (value) => {
+  const text = String(value ?? '')
+  return /[",\r\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text
+}
+
+export function buildCsv(orders) {
+  const header = [
+    'Order ID', 'Date', 'Customer', 'Email', 'Phone', 'City', 'Barangay', 'Address',
+    'Status', 'Payment', 'Items', 'Subtotal', 'Shipping', 'Total', 'Tracking',
+  ]
+  const rows = orders.map((order) => [
+    order.id,
+    order.date ? localDateKey(order.date) : '',
+    order.customer?.name, order.customer?.email, order.customer?.phone,
+    order.customer?.city, order.customer?.barangay, orderAddress(order),
+    displayOrderStatus(order.status), paymentLabel(order), itemSummary(order),
+    Number(order.subtotal) || 0, Number(order.shipping) || 0, Number(order.total) || 0,
+    order.trackingNumber,
+  ])
+  // The leading BOM makes Excel read the file as UTF-8 (names like "Parañaque").
+  return `${BOM}${[header, ...rows].map((row) => row.map(csvCell).join(',')).join('\r\n')}\r\n`
+}
+
+const escapeHtml = (value) =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
+
+export function buildReportHtml(orders, filters) {
+  const summary = summarize(orders)
+  const filterText = describeFilters(filters)
+  const topTable = (title, rows) => `
+    <h3>${escapeHtml(title)}</h3>
+    ${rows.length ? `<table><thead><tr><th>Item</th><th>Units</th><th>Orders</th><th>Share</th></tr></thead><tbody>
+      ${rows.map((row) => `<tr><td>${escapeHtml(row.label)}</td><td>${row.units}</td><td>${row.orders}</td><td>${row.share}%</td></tr>`).join('')}
+    </tbody></table>` : '<p class="muted">No orders.</p>'}`
+
+  const statusRows = Object.entries(summary.byStatus)
+    .map(([status, count]) => `<tr><td>${escapeHtml(status)}</td><td>${count}</td></tr>`).join('')
+  const orderRows = [...orders]
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+    .map((order) => `<tr>
+      <td>${escapeHtml(order.id)}</td>
+      <td>${escapeHtml(order.date ? localDateKey(order.date) : '')}</td>
+      <td>${escapeHtml(order.customer?.name)}</td>
+      <td>${escapeHtml([order.customer?.barangay, order.customer?.city].filter(Boolean).join(', '))}</td>
+      <td>${escapeHtml(itemSummary(order))}</td>
+      <td>${escapeHtml(displayOrderStatus(order.status))}</td>
+      <td class="num">${money(order.total)}</td>
+    </tr>`).join('')
+
+  return `<!doctype html><html><head><meta charset="utf-8"><title>TAPik report</title>
+<style>
+  body{font:13px Arial,sans-serif;color:#172554;margin:28px}
+  h1{margin:0;color:#2563eb;font-size:22px}h2{margin:22px 0 6px;font-size:16px}h3{margin:14px 0 4px;font-size:13px}
+  .muted{color:#475569}table{width:100%;border-collapse:collapse;margin-top:6px}
+  th,td{padding:6px 8px;border-bottom:1px solid #cbd5e1;text-align:left;vertical-align:top}
+  th{background:#eff6ff}.num{text-align:right;white-space:nowrap}
+  .stats{display:flex;gap:28px;margin-top:10px}.stats strong{display:block;font-size:18px}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  @media print{body{margin:12mm}tr{page-break-inside:avoid}}
+</style></head><body>
+<h1>TAPik sales report</h1>
+<p class="muted">Generated ${escapeHtml(new Date().toLocaleString())}</p>
+<p><strong>Filters:</strong> ${filterText.length ? escapeHtml(filterText.join(' · ')) : 'None (all orders)'}</p>
+<div class="stats">
+  <div><strong>${summary.orderCount}</strong>Orders</div>
+  <div><strong>PHP ${money(summary.sales)}</strong>Sales from confirmed payments</div>
+</div>
+<h2>Orders by status</h2>
+<table><tbody>${statusRows || '<tr><td class="muted">No orders.</td></tr>'}</tbody></table>
+<h2>Most ordered</h2>
+<p class="muted">Cancelled and rejected orders are not counted.</p>
+<div class="two"><div>${topTable('Shapes', topItems(orders, 'shape'))}</div><div>${topTable('Chains', topItems(orders, 'chain'))}</div></div>
+<h2>Orders</h2>
+<table><thead><tr><th>Order</th><th>Date</th><th>Customer</th><th>Location</th><th>Items</th><th>Status</th><th class="num">Total (PHP)</th></tr></thead>
+<tbody>${orderRows || '<tr><td colspan="7" class="muted">No orders match the filters.</td></tr>'}</tbody></table>
+</body></html>`
+}
+
+export function downloadTextFile(fileName, text, mimeType) {
+  const url = URL.createObjectURL(new Blob([text], { type: mimeType }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = fileName
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+// Opens the report in a new tab and starts printing, where it can be saved as PDF. False if blocked.
+export function openPrintableReport(html) {
+  const reportWindow = window.open('', '_blank')
+  if (!reportWindow) return false
+  reportWindow.document.open()
+  reportWindow.document.write(html)
+  reportWindow.document.close()
+  reportWindow.focus()
+  window.setTimeout(() => reportWindow.print(), 300)
+  return true
+}

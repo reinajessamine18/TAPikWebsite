@@ -2,10 +2,14 @@ import { useEffect, useState } from 'react'
 import { loadOrders, saveOrders } from '../lib/storage'
 import { api, downloadReceipt } from '../services/api'
 import { displayOrderStatus, orderStatusColor, paymentLabel, ORDER_STATUSES, FULFILLMENT_STATUSES } from '../lib/orderStatus'
-import { SHAPES, CHAINS } from '../lib/pricing'
+import { SHAPES, CHAINS, METRO_MANILA_CITIES } from '../lib/pricing'
+import { getBarangays } from '../data/metroManila'
+import { ALL_STATUSES, EMPTY_FILTERS, activeFilterCount, filterOrders, topItems } from '../lib/reports'
 import { itemKey, stockLevel, useInventory } from '../lib/inventory'
 import PaymentReview from '../components/PaymentReview'
 import OrderDetails from '../components/OrderDetails'
+import ReportDialog from '../components/ReportDialog'
+import DateRangePicker from '../components/DateRangePicker'
 
 const TABS = ['Dashboard', 'Orders', 'Inventory']
 const STATUSES = ORDER_STATUSES
@@ -36,8 +40,9 @@ export default function Admin() {
   const [navOpen, setNavOpen] = useState(() => window.innerWidth >= 1024)
   const [orders, setOrders] = useState(loadOrders)
   const [notice, setNotice] = useState('')
-  const [orderSearch, setOrderSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('All statuses')
+  const [filters, setFilters] = useState(EMPTY_FILTERS)
+  const [showReport, setShowReport] = useState(false)
+  const [includeInactive, setIncludeInactive] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState(api.isConfigured() ? 'checking' : 'not-configured')
   const [lastSyncedAt, setLastSyncedAt] = useState(null)
   const [reviewOrderId, setReviewOrderId] = useState(null)
@@ -180,6 +185,9 @@ export default function Admin() {
   const changeDraft = (key, field, value) =>
     setStockDrafts((current) => ({ ...current, [key]: { ...current[key], [field]: value } }))
 
+  const setFilter = (key, value) =>
+    setFilters((current) => ({ ...current, [key]: value, ...(key === 'city' ? { barangay: '' } : {}) }))
+
   const goToTab = (item) => {
     setTab(item)
     if (window.innerWidth < 1024) setNavOpen(false)
@@ -197,19 +205,11 @@ export default function Admin() {
     .filter((order) => order.paymentStatus === 'Paid' && displayOrderStatus(order.status) !== 'Cancelled')
     .reduce((total, order) => total + (Number(order.total) || 0), 0)
   const recentOrders = [...orders].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 5)
-  const filteredOrders = orders.filter((order) => {
-    const query = orderSearch.trim().toLowerCase()
-    const searchableValues = [
-      order.id,
-      order.customer?.name,
-      order.customer?.email,
-      order.customer?.phone,
-      ...(order.items || []).flatMap((item) => [item.shape, item.name, item.chain, item.nfcLink]),
-    ]
-    const matchesQuery = !query || searchableValues
-      .some((value) => String(value || '').toLowerCase().includes(query))
-    return matchesQuery && (statusFilter === 'All statuses' || displayOrderStatus(order.status) === statusFilter)
-  }).sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+  const filteredOrders = filterOrders(orders, filters)
+    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+  const filterCount = activeFilterCount(filters)
+  const topShapes = topItems(orders, 'shape', includeInactive)
+  const topChains = topItems(orders, 'chain', includeInactive)
 
   const inventoryRows = [
     ...SHAPES.map((item) => ({ type: 'shape', ...item })),
@@ -348,6 +348,37 @@ export default function Admin() {
                 </section>
               )}
 
+              <section className="tapik-surface rounded-xl border border-white/25 p-5">
+                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                  <div><h3 className="text-lg font-black">Most ordered</h3><p className="text-sm text-blue-200">Units sold per shape and chain</p></div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-2 text-xs text-blue-100"><input type="checkbox" checked={includeInactive} onChange={(event) => setIncludeInactive(event.target.checked)} />Include cancelled and rejected</label>
+                    <button type="button" onClick={() => setShowReport(true)} className="rounded-lg bg-yellow-300 px-3 py-2 text-sm font-bold text-slate-950">Generate report</button>
+                  </div>
+                </div>
+                <div className="grid gap-5 lg:grid-cols-2">
+                  {[['Shapes', topShapes], ['Chains', topChains]].map(([title, rows]) => (
+                    <div key={title}>
+                      <h4 className="mb-2 text-xs font-black uppercase tracking-[0.14em] text-blue-200">{title}</h4>
+                      {rows.length === 0 ? <p className="py-3 text-sm text-blue-200">No orders yet.</p> : (
+                        <table className="w-full text-left text-sm">
+                          <thead className="border-b border-white/15 text-xs uppercase text-blue-200"><tr><th className="py-2 pr-3">Item</th><th className="py-2 pr-3">Units</th><th className="py-2 pr-3">Orders</th><th className="py-2">Share</th></tr></thead>
+                          <tbody>{rows.map((row, index) => (
+                            <tr key={row.id || index} className="border-b border-white/10 last:border-0">
+                              <td className="py-2 pr-3 font-semibold">{index === 0 && <span aria-hidden="true">★ </span>}{row.label}</td>
+                              <td className="py-2 pr-3 font-bold">{row.units}</td>
+                              <td className="py-2 pr-3">{row.orders}</td>
+                              <td className="py-2"><div className="flex items-center gap-2"><div className="h-2 w-16 overflow-hidden rounded-full bg-white/10"><div className="h-full rounded-full bg-yellow-300" style={{ width: `${row.share}%` }} /></div><span className="text-xs">{row.share}%</span></div></td>
+                            </tr>
+                          ))}</tbody>
+                        </table>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <p className="mt-3 text-xs text-blue-200">The report uses the filters set in the Orders tab{filterCount ? ` (${filterCount} on, ${filteredOrders.length} orders)` : ' (none on, all orders)'}.</p>
+              </section>
+
               <div className="grid gap-5 xl:grid-cols-[minmax(0,1.5fr)_minmax(260px,0.8fr)]">
                 <section className="tapik-surface rounded-xl border border-white/25 p-5">
                   <div className="mb-4 flex items-center justify-between gap-3">
@@ -388,14 +419,28 @@ export default function Admin() {
                 <div><h3 className="text-lg font-black">Order management</h3><p className="text-sm text-blue-200">Open an order to see the customer, items, payment proof and receipt.</p></div>
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-md bg-white/10 px-3 py-2 text-sm">{filteredOrders.length} orders</span>
+                  <button type="button" onClick={() => setShowReport(true)} className="rounded-lg bg-yellow-300 px-3 py-2 text-sm font-bold text-slate-950">Generate report</button>
                   <button type="button" onClick={() => refreshAdminData(true)} disabled={connectionStatus === 'checking'} className="rounded-lg border border-white/20 px-3 py-2 text-sm font-bold hover:bg-white/10 disabled:opacity-50">{connectionStatus === 'checking' ? 'Syncing...' : 'Refresh'}</button>
                 </div>
               </div>
-              <div className="mb-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_190px_auto]">
-                <input type="search" value={orderSearch} onChange={(event) => setOrderSearch(event.target.value)} placeholder="Search order, customer, email, or phone" className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-blue-200" />
-                <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)} aria-label="Filter by status" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white"><option>All statuses</option>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select>
-                <button type="button" onClick={() => setStatusFilter(statusFilter === 'Payment submitted' ? 'All statuses' : 'Payment submitted')} className={`rounded-lg border px-3 py-2 text-sm font-bold ${statusFilter === 'Payment submitted' ? 'border-yellow-300 bg-yellow-300 text-slate-950' : 'border-white/20 hover:bg-white/10'}`}>To verify ({toVerify})</button>
+              <div className="mb-3 grid gap-3 sm:grid-cols-[minmax(0,1fr)_190px_auto]">
+                <input type="search" value={filters.search} onChange={(event) => setFilter('search', event.target.value)} placeholder="Search order, customer, email, or phone" className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-blue-200" />
+                <select value={filters.status} onChange={(event) => setFilter('status', event.target.value)} aria-label="Filter by status" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white"><option>{ALL_STATUSES}</option>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select>
+                <button type="button" onClick={() => setFilter('status', filters.status === 'Payment submitted' ? ALL_STATUSES : 'Payment submitted')} className={`rounded-lg border px-3 py-2 text-sm font-bold ${filters.status === 'Payment submitted' ? 'border-yellow-300 bg-yellow-300 text-slate-950' : 'border-white/20 hover:bg-white/10'}`}>To verify ({toVerify})</button>
               </div>
+              <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <select value={filters.city} onChange={(event) => setFilter('city', event.target.value)} aria-label="Filter by city" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white"><option value="">City: all</option>{METRO_MANILA_CITIES.map((city) => <option key={city} value={city}>{city}</option>)}</select>
+                <select value={filters.barangay} onChange={(event) => setFilter('barangay', event.target.value)} disabled={!filters.city} aria-label="Filter by barangay" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white disabled:opacity-50"><option value="">{filters.city ? 'Barangay: all' : 'Barangay: pick a city first'}</option>{getBarangays(filters.city).map((barangay) => <option key={barangay} value={barangay}>{barangay}</option>)}</select>
+                <select value={filters.shape} onChange={(event) => setFilter('shape', event.target.value)} aria-label="Filter by shape" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white"><option value="">Shape: all</option>{SHAPES.map((shape) => <option key={shape.id} value={shape.id}>{shape.label}</option>)}</select>
+                <select value={filters.chain} onChange={(event) => setFilter('chain', event.target.value)} aria-label="Filter by chain" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white"><option value="">Chain: all</option>{CHAINS.map((chain) => <option key={chain.id} value={chain.id}>{chain.label}</option>)}</select>
+                <DateRangePicker from={filters.from} to={filters.to} onChange={({ from, to }) => setFilters((current) => ({ ...current, from, to }))} />
+              </div>
+              {filterCount > 0 && (
+                <div className="mb-3 flex items-center gap-3 text-sm">
+                  <span className="text-blue-100">{filterCount} filter{filterCount === 1 ? '' : 's'} on</span>
+                  <button type="button" onClick={() => setFilters(EMPTY_FILTERS)} className="rounded-lg border border-white/25 px-3 py-1.5 text-xs font-bold hover:bg-white/10">Clear filters</button>
+                </div>
+              )}
               {lastSyncedAt && <p className="mb-3 text-xs text-blue-200">Last synced {lastSyncedAt.toLocaleTimeString()}</p>}
               {filteredOrders.length === 0 ? <p className="py-10 text-center text-blue-200">{orders.length ? 'No orders match these filters.' : 'No orders have been placed yet.'}</p> : (
                 <div className="overflow-x-auto">
@@ -457,6 +502,8 @@ export default function Admin() {
               {!inventory && api.isConfigured() && !inventoryError && <p className="text-sm text-blue-200">Loading stock…</p>}
             </div>
           )}
+
+          {showReport && <ReportDialog orders={filteredOrders} filters={filters} onClose={() => setShowReport(false)} />}
 
           {detailsOrder && (
             <OrderDetails
