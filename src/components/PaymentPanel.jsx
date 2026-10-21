@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import DemoQr from './DemoQr'
+import LoadingOverlay from './LoadingOverlay'
 import { api } from '../services/api'
 import { resizeImageToDataUrl } from '../lib/image'
 
@@ -80,13 +81,10 @@ export default function PaymentPanel({ order, account, onUpdated }) {
   return (
     <form onSubmit={submit} className="tapik-surface grid gap-5 rounded-2xl border border-white/25 p-5 text-left sm:grid-cols-[180px_minmax(0,1fr)]">
       {busy && (
-        <div className="fixed inset-0 z-[100001] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="alertdialog" aria-modal="true" aria-live="assertive" aria-labelledby="submitting-payment-title">
-          <div className="tapik-surface w-full max-w-sm rounded-3xl border border-white/25 p-8 text-center">
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-white/25 border-t-yellow-400" />
-            <h2 id="submitting-payment-title" className="text-xl font-bold">Submitting your payment…</h2>
-            <p className="mt-2 text-sm text-blue-100">This can take a few seconds while we save your order and upload your proof of payment and design. Please don't close or refresh this page.</p>
-          </div>
-        </div>
+        <LoadingOverlay
+          title="Submitting your payment…"
+          message="This can take a few seconds while we save your order and upload your proof of payment and design. Please don't close or refresh this page."
+        />
       )}
       <div>
         <DemoQr seed={order.id} />

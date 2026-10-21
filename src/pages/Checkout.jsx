@@ -1,30 +1,22 @@
 import { useState } from 'react'
-import { calculateShippingFee, METRO_MANILA_CITIES, SHAPES, CHAINS } from '../lib/pricing'
-import { getBarangays } from '../data/metroManila'
+import { calculateShippingFee, SHAPES, CHAINS } from '../lib/pricing'
+import { REGION, isAddressComplete, normalizeDetails } from '../lib/address'
+import AddressFields from '../components/AddressFields'
 import { saveOrders, loadOrders, upsertOrders, loadDeliveryDetails, saveDeliveryDetails, newId } from '../lib/storage'
 import { itemKey, useInventory } from '../lib/inventory'
 import { displayOrderStatus, PAYABLE_STATUSES } from '../lib/orderStatus'
 import PaymentPanel from '../components/PaymentPanel'
 
-const REGION = 'Metro Manila'
-
-// Delivery is limited to Metro Manila. Older saved details may hold a free-text
-// city or another province, so drop anything that is not a valid selection.
-function normalizeDetails(details) {
-  if (!details) return details
-  const city = METRO_MANILA_CITIES.includes(details.city) ? details.city : ''
-  const barangay = getBarangays(city).includes(details.barangay) ? details.barangay : ''
-  return { ...details, province: REGION, city, barangay }
-}
-
-const isAddressComplete = (details) => Boolean(details?.city && details?.barangay)
-
 export default function Checkout({ cart, setCart, setPage, account }) {
   const [form, setForm] = useState(() => ({
-    name: account?.name || '', email: account?.email || '', phone: '', province: REGION, city: '', barangay: '', street: '', landmark: '', instructions: '',
+    name: account?.name || '', email: account?.email || '', phone: '', province: REGION, city: '', barangay: '', street: '', landmark: '',
     ...normalizeDetails(loadDeliveryDetails(account?.id)),
+    instructions: '',
   }))
-  const [savedDetails, setSavedDetails] = useState(() => normalizeDetails(loadDeliveryDetails(account?.id)))
+  const [savedDetails, setSavedDetails] = useState(() => {
+    const details = normalizeDetails(loadDeliveryDetails(account?.id))
+    return details && { ...details, instructions: '' }
+  })
   const [isEditingDetails, setIsEditingDetails] = useState(() => {
     const details = normalizeDetails(loadDeliveryDetails(account?.id))
     return !details || !isAddressComplete(details)
@@ -39,13 +31,12 @@ export default function Checkout({ cart, setCart, setPage, account }) {
   const hasCity = fee !== null
   const shipping = fee ?? 0
   const total = subtotal + shipping
-  const barangayOptions = getBarangays(form.city)
 
   const update = (key, value) => {
     const next = { ...form, [key]: value }
     if (key === 'city') next.barangay = ''
     setForm(next)
-    saveDeliveryDetails(account.id, next)
+    saveDeliveryDetails(account.id, { ...next, instructions: '' })
     setSavedDetails(next)
   }
 
@@ -99,6 +90,13 @@ export default function Checkout({ cart, setCart, setPage, account }) {
     setSuccess(order)
   }
 
+  // The order has not been sent anywhere yet, so going back just drops it from this browser and refills the cart.
+  const goBack = () => {
+    saveOrders(loadOrders().filter((order) => order.id !== success.id))
+    setCart(success.items)
+    setSuccess(null)
+  }
+
   if (success) {
     const needsPayment = PAYABLE_STATUSES.includes(displayOrderStatus(success.status))
     return (
@@ -126,8 +124,13 @@ export default function Checkout({ cart, setCart, setPage, account }) {
             )}
             <div className="mt-6 flex flex-wrap justify-center gap-3">
               <button type="button" onClick={() => setPage('home')} className="rounded-full bg-yellow-400 px-5 py-2 font-bold text-blue-900">Home</button>
-              <button type="button" onClick={() => setPage('customize')} className="rounded-full border border-yellow-400 px-5 py-2 font-bold text-yellow-400">Continue customizing</button>
+              {needsPayment ? (
+                <button type="button" onClick={goBack} className="rounded-full border border-yellow-300 px-5 py-2 font-bold text-yellow-300">Back</button>
+              ) : (
+                <button type="button" onClick={() => setPage('orders')} className="rounded-full border border-yellow-300 px-5 py-2 font-bold text-yellow-300">View orders</button>
+              )}
             </div>
+            {needsPayment && <p className="mt-3 text-xs text-blue-100">Back lets you change your cart or delivery details. Your order is not sent to us until you submit your payment.</p>}
           </div>
         </div>
       </div>
@@ -172,23 +175,7 @@ export default function Checkout({ cart, setCart, setPage, account }) {
               {savedDetails.instructions && <p><strong>Delivery instructions</strong><br />{savedDetails.instructions}</p>}
             </div>
           ) : (
-            <>
-              <input required placeholder="Full name *" value={form.name} onChange={(e) => update('name', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
-              <input placeholder="Email" value={form.email} onChange={(e) => update('email', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
-              <input required placeholder="Phone number *" value={form.phone} onChange={(e) => update('phone', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
-              <input readOnly aria-label="Region" value={REGION} className="w-full border border-white/20 bg-white/10 rounded-xl p-2 text-white opacity-80" />
-              <select required aria-label="City / Municipality" value={form.city} onChange={(e) => update('city', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white">
-                <option value="" className="text-blue-900">City / Municipality *</option>
-                {METRO_MANILA_CITIES.map((city) => <option key={city} value={city} className="text-blue-900">{city}</option>)}
-              </select>
-              <select required aria-label="Barangay" value={form.barangay} disabled={!form.city} onChange={(e) => update('barangay', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white disabled:opacity-60">
-                <option value="" className="text-blue-900">{form.city ? 'Barangay *' : 'Select a city first'}</option>
-                {barangayOptions.map((barangay) => <option key={barangay} value={barangay} className="text-blue-900">{barangay}</option>)}
-              </select>
-              <input required placeholder="Street / house / building *" value={form.street} onChange={(e) => update('street', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
-              <input placeholder="Landmark (optional)" value={form.landmark} onChange={(e) => update('landmark', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" />
-              <textarea placeholder="Delivery instructions" value={form.instructions} onChange={(e) => update('instructions', e.target.value)} className="w-full border border-white/20 bg-white/5 rounded-xl p-2 text-white placeholder-blue-200" rows={3} />
-            </>
+            <AddressFields form={form} onChange={update} />
           )}
 
           <p className="text-xs text-blue-200">

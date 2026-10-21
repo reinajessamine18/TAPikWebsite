@@ -9,6 +9,7 @@ import { itemKey, stockLevel, useInventory } from '../lib/inventory'
 import PaymentReview from '../components/PaymentReview'
 import OrderDetails from '../components/OrderDetails'
 import ReportDialog from '../components/ReportDialog'
+import LoadingOverlay from '../components/LoadingOverlay'
 import DateRangePicker from '../components/DateRangePicker'
 
 const TABS = ['Dashboard', 'Orders', 'Inventory']
@@ -42,6 +43,7 @@ export default function Admin() {
   const [notice, setNotice] = useState('')
   const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [showReport, setShowReport] = useState(false)
+  const [manualRefreshing, setManualRefreshing] = useState(false)
   const [showMoreFilters, setShowMoreFilters] = useState(false)
   const [includeInactive, setIncludeInactive] = useState(false)
   const [connectionStatus, setConnectionStatus] = useState(api.isConfigured() ? 'checking' : 'not-configured')
@@ -98,6 +100,16 @@ export default function Admin() {
       window.clearInterval(intervalId)
     }
   }, [])
+
+  // The Refresh button blocks the page with a loading box until the orders come back, like the payment step.
+  const handleManualRefresh = async () => {
+    setManualRefreshing(true)
+    try {
+      await refreshAdminData(true)
+    } finally {
+      setManualRefreshing(false)
+    }
+  }
 
   const updateOrderStatus = async (order, status) => {
     const next = orders.map((item) => item.id === order.id ? { ...item, status } : item)
@@ -289,7 +301,7 @@ export default function Admin() {
   )
 
   return (
-    <section className="min-h-[calc(100vh-76px)] text-white">
+    <section className="tapik-admin min-h-[calc(100vh-76px)] text-white">
       <div className={`mx-auto grid w-full max-w-[1600px] gap-5 px-4 py-6 sm:px-6 lg:gap-7 lg:px-8 lg:py-8 ${navOpen ? 'lg:grid-cols-[200px_minmax(0,1fr)]' : ''}`}>
         {navOpen && <button type="button" aria-label="Close menu" onClick={() => setNavOpen(false)} className="fixed inset-0 z-[50] bg-black/60 lg:hidden" />}
         {navOpen && (
@@ -467,7 +479,7 @@ export default function Admin() {
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="rounded-md bg-white/10 px-3 py-2 text-sm">{filteredOrders.length} orders</span>
                   <button type="button" onClick={() => setShowReport(true)} className="rounded-lg bg-yellow-300 px-3 py-2 text-sm font-bold text-slate-950">Generate report</button>
-                  <button type="button" onClick={() => refreshAdminData(true)} disabled={connectionStatus === 'checking'} className="rounded-lg border border-white/20 px-3 py-2 text-sm font-bold hover:bg-white/10 disabled:opacity-50">{connectionStatus === 'checking' ? 'Syncing...' : 'Refresh'}</button>
+                  <button type="button" onClick={handleManualRefresh} disabled={connectionStatus === 'checking'} className="rounded-lg border border-white/20 px-3 py-2 text-sm font-bold hover:bg-white/10 disabled:opacity-50">{connectionStatus === 'checking' ? 'Syncing...' : 'Refresh'}</button>
                 </div>
               </div>
               <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_190px_240px]">
@@ -570,6 +582,13 @@ export default function Admin() {
               )}
               {!inventory && api.isConfigured() && !inventoryError && <p className="text-sm text-blue-200">Loading stock…</p>}
             </div>
+          )}
+
+          {manualRefreshing && (
+            <LoadingOverlay
+              title="Refreshing orders…"
+              message="Getting the latest orders from the order database. Please don't close or refresh this page."
+            />
           )}
 
           {showReport && <ReportDialog orders={filteredOrders} filters={filters} onClose={() => setShowReport(false)} />}

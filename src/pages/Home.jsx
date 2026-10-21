@@ -4,7 +4,6 @@ import websiteLogo from '../assets/websitelogo.png'
 import emailLogo from '../assets/emailLogo.png'
 import instagramLogo from '../assets/instagramlogo.png'
 import facebookLogo from '../assets/facebooklogo.png'
-import { loadOrders } from '../lib/storage'
 import { displayOrderStatus, orderStatusColor } from '../lib/orderStatus'
 
 function Reveal({ children, delay = 0, className = '' }) {
@@ -40,12 +39,7 @@ function Reveal({ children, delay = 0, className = '' }) {
   )
 }
 
-export default function Home({ setPage, onAccount, account }) {
-  const [orders] = useState(() => account?.role === 'customer'
-    ? loadOrders()
-      .filter((order) => order.customerId === account.id)
-      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-    : [])
+export default function Home({ setPage, onAccount, account, orders = [] }) {
   const latestOrder = orders[0]
   const latestOrderIsShipped = ['Shipped', 'Delivered'].includes(displayOrderStatus(latestOrder?.status))
   const latestItemCount = (latestOrder?.items || []).reduce(
@@ -120,7 +114,7 @@ export default function Home({ setPage, onAccount, account }) {
             <button
               type="button"
               onClick={() => setPage('customize')}
-              className="rounded-full bg-yellow-400 px-6 py-3 font-bold text-white transition hover:bg-yellow-300"
+              className="rounded-full bg-yellow-400 px-6 py-3 font-bold text-slate-950 transition hover:bg-yellow-300"
             >
               Start customizing
             </button>

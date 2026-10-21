@@ -10,20 +10,51 @@
 }
 
 :root {
-  font-family: "Off Yer Trolley", "Trebuchet MS", Arial, sans-serif;
+  /* Inter for everything people need to read; the playful display font is kept for page headings. */
+  --font-body: "Inter Variable", "Segoe UI", system-ui, -apple-system, Arial, sans-serif;
+  --font-display: "Off Yer Trolley", "Trebuchet MS", Arial, sans-serif;
+  font-family: var(--font-body);
   color: #fff;
-  background: #4f94b2;
+  background: #285f7c;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 
-  --tapik-blue: #4f94b2;
-  --tapik-panel: #65a6c2;
-  --tapik-container-bg: rgba(101, 166, 194, 0.96);
+  /* Darker blues so white text reaches at least 4.5:1 contrast (WCAG AA). */
+  --tapik-blue: #285f7c;
+  --tapik-panel: #2f6b8a;
+  --tapik-container-bg: rgba(47, 107, 138, 0.96);
   --tapik-yellow: #ffc15b;
   --tapik-white: #fff;
-  --tapik-text-shadow: 1px 2px 1px rgba(70, 70, 70, 0.65);
+  --tapik-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Lighter secondary text colors so they stay readable on the darker blues. */
+@theme {
+  --color-blue-100: #f0f7ff;
+  --color-blue-200: #dcebfc;
+  --color-yellow-300: #ffe27a;
+  --color-yellow-400: #ffd04f;
+  --color-rose-300: #ffd1d6;
+  --color-green-300: #bdf7d2;
+}
+
+.tapik-app h1,
+.tapik-app h2 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+/* Admin is data-heavy: use the readable font for its headings too. */
+.tapik-admin h1,
+.tapik-admin h2,
+.tapik-admin h3,
+.tapik-admin-navbar h1 {
+  font-family: var(--font-body);
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
 * {
@@ -91,7 +122,7 @@ textarea:focus-visible {
 .tapik-surface textarea,
 .tapik-surface select {
   border-color: rgba(255, 255, 255, 0.35);
-  background-color: rgba(49, 113, 142, 0.48);
+  background-color: rgba(14, 48, 70, 0.5);
   color: #fff;
 }
 
@@ -172,7 +203,7 @@ textarea:focus-visible {
   width: 100%;
   min-width: 0;
   overflow: hidden;
-  background: #4f94b2;
+  background: #285f7c;
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 7px 15px rgba(30, 72, 88, 0.28);
 }
@@ -227,7 +258,7 @@ textarea:focus-visible {
 }
 
 .tapik-nav-toggle:hover {
-  background: #65a6c2;
+  background: #2f6b8a;
 }
 
 .tapik-nav-toggle .tapik-cart-count {
@@ -321,7 +352,7 @@ textarea:focus-visible {
   gap: 16px;
   padding: 10px clamp(16px, 5.5vw, 80px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-  background: #4f94b2;
+  background: #285f7c;
   color: white;
 }
 
@@ -360,7 +391,7 @@ textarea:focus-visible {
 .tapik-nav-link:hover,
 .tapik-nav-link.is-active {
   color: #fff;
-  background: #65a6c2;
+  background: #2f6b8a;
 }
 
 .tapik-cart-count {
@@ -371,7 +402,7 @@ textarea:focus-visible {
   height: 21px;
   padding: 0 5px;
   border-radius: 999px;
-  color: #5b7d8d;
+  color: #173746;
   background: var(--tapik-yellow);
   font-size: 12px;
   font-weight: 900;
@@ -386,7 +417,7 @@ textarea:focus-visible {
   flex-wrap: wrap;
   gap: 6px 12px;
   padding: 18px 16px;
-  background: rgba(52, 126, 157, 0.88);
+  background: rgba(36, 92, 121, 0.92);
   color: #fff;
   text-align: center;
   font-size: 13px;
@@ -422,7 +453,7 @@ textarea:focus-visible {
     align-items: stretch;
     gap: 4px;
     padding: 10px clamp(16px, 5.5vw, 80px) 14px;
-    background: #4f94b2;
+    background: #285f7c;
     border-bottom: 1px solid rgba(255, 255, 255, 0.14);
     box-shadow: 0 12px 18px rgba(30, 72, 88, 0.28);
   }
@@ -515,7 +546,7 @@ textarea:focus-visible {
 
 .tapik-eyebrow {
   margin: 0 0 7px;
-  color: #ffc15b;
+  color: #ffd98a;
   font-size: 13px;
   font-weight: 900;
   letter-spacing: 2px;
@@ -538,7 +569,7 @@ textarea:focus-visible {
   flex-shrink: 0;
   padding: 9px 15px;
   border-radius: 999px;
-  background: #65a6c2;
+  background: #2f6b8a;
   font-size: 15px;
   font-weight: 800;
 }
@@ -632,7 +663,7 @@ textarea:focus-visible {
 .tapik-product-tags span {
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(49, 113, 142, 0.45);
+  background: rgba(14, 48, 70, 0.45);
   font-size: 13px;
   font-weight: 700;
 }
@@ -685,7 +716,7 @@ textarea:focus-visible {
 
 .tapik-quantity-value {
   min-width: 16px;
-  color: #477f99;
+  color: #1f5671;
   text-align: center;
   font-size: 15px;
   font-weight: 900;
@@ -813,7 +844,7 @@ textarea:focus-visible {
   border: 0;
   border-radius: 999px;
   color: #fff;
-  background: #4f94b2;
+  background: #285f7c;
   box-shadow: 0 5px 12px rgba(32, 76, 92, 0.2);
   font-size: 16px;
   font-weight: 900;
@@ -821,7 +852,7 @@ textarea:focus-visible {
 }
 
 .tapik-primary-button:hover {
-  background: #397f9e;
+  background: #35799b;
   transform: translateY(-1px);
 }
 
@@ -958,7 +989,7 @@ textarea:focus-visible {
   padding: 25px;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 24px;
-  background: #4f94b2;
+  background: #285f7c;
   box-shadow: 0 12px 28px rgba(25, 67, 83, 0.30);
   color: #fff;
 }
@@ -1012,7 +1043,7 @@ textarea:focus-visible {
 
 .tapik-customize-qty-value {
   min-width: 20px;
-  color: #4f94b2;
+  color: #285f7c;
   font-size: 20px;
   font-weight: 900;
   text-align: center;
@@ -1089,7 +1120,7 @@ textarea:focus-visible {
   border: none;
   border-radius: 999px;
   background: #ffc15b;
-  color: #47768b;
+  color: #173746;
   font-size: 15px;
   font-weight: 900;
   box-shadow: 0 5px 12px rgba(25, 67, 83, 0.2);
@@ -1447,7 +1478,7 @@ textarea:focus-visible {
   padding: 4px 12px;
   border-radius: 10px;
   background: #fff;
-  color: var(--tapik-yellow);
+  color: #173746;
   font-size: 14px;
   font-weight: 800;
 }
@@ -1457,6 +1488,8 @@ textarea:focus-visible {
 }
 
 .tapik-contact-strip .tapik-section-title {
+  color: #173746;
+  text-shadow: none;
   font-size: clamp(26px, 4vw, 38px);
 }
 
@@ -1487,7 +1520,7 @@ textarea:focus-visible {
 }
 
 .tapik-contact-card:hover {
-  color: #47768b;
+  color: #173746;
   transform: translateY(-6px);
 }
 

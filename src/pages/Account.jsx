@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { authenticateUser, registerUser } from '../lib/storage'
+import PasswordInput from '../components/PasswordInput'
 
 export default function Account({ onSuccess, onCancel, modal = false, initialMode = 'login' }) {
   const [mode, setMode] = useState(initialMode)
@@ -49,7 +50,7 @@ export default function Account({ onSuccess, onCancel, modal = false, initialMod
         </label>
         <label className="block text-sm font-semibold">
           Password
-          <input required minLength={6} type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={(event) => setPassword(event.target.value)} className="mt-1 w-full rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-white placeholder:text-blue-200" />
+          <PasswordInput required minLength={6} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={(event) => setPassword(event.target.value)} className="mt-1 w-full rounded-lg border border-white/25 bg-white/10 px-3 py-2 text-white placeholder:text-blue-200" />
         </label>
         {error && <p role="alert" className="text-sm font-semibold text-rose-300">{error}</p>}
         <button type="submit" className="w-full rounded-lg bg-yellow-400 px-4 py-3 font-bold text-slate-950 transition hover:bg-yellow-300">

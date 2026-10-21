@@ -6,6 +6,7 @@ const PAGES = [
   { id: 'customize', label: 'Customize' },
   { id: 'cart', label: 'Cart' },
   { id: 'orders', label: 'Orders' },
+  { id: 'profile', label: 'Profile', signedInOnly: true },
 ]
 
 export default function Navbar({ page, setPage, cartCount = 0, account, onSignIn, onSignUp, onSignOut }) {
@@ -40,7 +41,7 @@ export default function Navbar({ page, setPage, cartCount = 0, account, onSignIn
           className={`tapik-navigation ${menuOpen ? 'is-open' : ''}`}
           aria-label="Main navigation"
         >
-          {PAGES.map((item) => (
+          {PAGES.filter((item) => !item.signedInOnly || account).map((item) => (
             <button
               key={item.id}
               type="button"

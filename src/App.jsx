@@ -8,6 +8,10 @@ import Checkout from './pages/Checkout'
 import Orders from './pages/Orders'
 import Admin from './pages/Admin'
 import Account from './pages/Account'
+import Profile from './pages/Profile'
+import StatusToasts from './components/StatusToasts'
+import { useCustomerOrders } from './lib/useCustomerOrders'
+import { useStatusToasts } from './lib/useStatusToasts'
 import { clearSession, loadCart, loadSession, saveCart, saveSession } from './lib/storage'
 import bg from './assets/TAPikbg.png'
 
@@ -18,6 +22,11 @@ export default function App() {
   const [accountMode, setAccountMode] = useState('login')
   const [showAccountPrompt, setShowAccountPrompt] = useState(false)
   const [pendingItem, setPendingItem] = useState(null)
+
+  // One shared, live feed of the signed-in customer's orders for Home, Orders and Profile, plus pop-ups for status changes.
+  const customerId = account?.role === 'customer' ? account.id : null
+  const customerOrders = useCustomerOrders(customerId)
+  const { toasts, dismiss: dismissToast } = useStatusToasts(customerOrders.orders)
 
   useEffect(() => {
     saveCart(account ? cart : [])
@@ -71,7 +80,7 @@ export default function App() {
   const renderPage = () => {
     switch (page) {
       case 'home':
-        return <Home setPage={setPage} onAccount={requireAccount} account={account} />
+        return <Home setPage={setPage} onAccount={requireAccount} account={account} orders={customerOrders.orders} />
 
       case 'customize':
         return <Customize onAddToCart={addToCart} />
@@ -88,7 +97,12 @@ export default function App() {
 
       case 'orders':
         return account
-          ? <Orders account={account} />
+          ? <Orders account={account} ordersState={customerOrders} />
+          : <AccountRequired onSignIn={requireAccount} />
+
+      case 'profile':
+        return account
+          ? <Profile account={account} setPage={setPage} orders={customerOrders.orders} />
           : <AccountRequired onSignIn={requireAccount} />
 
       case 'admin':
@@ -100,7 +114,7 @@ export default function App() {
         return <Account onSuccess={completeSignIn} initialMode={accountMode} />
 
       default:
-        return <Home setPage={setPage} onAccount={requireAccount} account={account} />
+        return <Home setPage={setPage} onAccount={requireAccount} account={account} orders={customerOrders.orders} />
     }
   }
 
@@ -110,7 +124,7 @@ export default function App() {
   return (
     <div
       className="tapik-app"
-      style={{ backgroundImage: `url(${bg})` }}
+      style={{ backgroundImage: `linear-gradient(rgba(14, 58, 84, 0.6), rgba(14, 58, 84, 0.6)), url(${bg})` }}
     >
       {isAdmin ? (
         <header className="tapik-admin-navbar">
@@ -140,6 +154,8 @@ export default function App() {
           onCancel={() => { setShowAccountPrompt(false); setPendingItem(null) }}
         />
       )}
+
+      {customerId && <StatusToasts toasts={toasts} onDismiss={dismissToast} onView={() => setPage('orders')} />}
 
       {!isAdmin && (
         <footer className="tapik-footer">

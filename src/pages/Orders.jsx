@@ -1,40 +1,24 @@
-import { useEffect, useState } from 'react'
-import { loadOrders, mergeRemoteOrders, upsertOrders } from '../lib/storage'
+import { useState } from 'react'
+import { upsertOrders } from '../lib/storage'
 import { displayOrderStatus, orderStatusColor, PAYABLE_STATUSES } from '../lib/orderStatus'
-import { api, downloadReceipt } from '../services/api'
+import { downloadReceipt } from '../services/api'
 import PaymentPanel from '../components/PaymentPanel'
+import ReceiptViewer from '../components/ReceiptViewer'
+import { buildReceiptHtml, receiptNumberOf } from '../lib/receipt'
+import { openPrintableReport } from '../lib/reports'
 
-const mine = (orders, accountId) =>
-  orders
-    .filter((order) => order.customerId === accountId)
-    .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-
-export default function Orders({ account }) {
+export default function Orders({ account, ordersState }) {
   const [receiptError, setReceiptError] = useState('')
-  const [orders, setOrders] = useState(() => mine(loadOrders(), account.id))
+  const { orders, reload, refresh, error: syncError, lastSynced } = ordersState
   const [payingId, setPayingId] = useState(null)
+  const [viewingId, setViewingId] = useState(null)
+  const [refreshing, setRefreshing] = useState(false)
 
-  // Pull the latest statuses (payment decisions, shipping) from the order database.
-  useEffect(() => {
-    if (!api.isConfigured()) return undefined
-    let active = true
-    const sync = async () => {
-      try {
-        const result = await api.getCustomerOrders({ customerId: account.id })
-        if (!active || !result.ok || !Array.isArray(result.data)) return
-        mergeRemoteOrders(result.data)
-        setOrders(mine(loadOrders(), account.id))
-      } catch {
-        // Keep showing the orders saved in this browser when the sync fails.
-      }
-    }
-    sync()
-    const intervalId = window.setInterval(sync, 30000)
-    return () => {
-      active = false
-      window.clearInterval(intervalId)
-    }
-  }, [account.id])
+  const handleRefresh = async () => {
+    setRefreshing(true)
+    await refresh()
+    setRefreshing(false)
+  }
 
   const handleReceiptDownload = async (orderId) => {
     try {
@@ -45,9 +29,16 @@ export default function Orders({ account }) {
     }
   }
 
+  const handleReceiptPrint = (order) => {
+    setReceiptError('')
+    if (!openPrintableReport(buildReceiptHtml(order))) {
+      setReceiptError('Your browser blocked the print window. Allow pop-ups for this site and try again.')
+    }
+  }
+
   const handlePaymentUpdated = (updated) => {
     upsertOrders([updated])
-    setOrders(mine(loadOrders(), account.id))
+    reload()
     setPayingId(null)
   }
 
@@ -65,7 +56,16 @@ export default function Orders({ account }) {
   return (
     <div className="min-h-screen text-white">
       <div className="max-w-5xl mx-auto px-4 py-10 space-y-4">
-        <h2 className="text-2xl font-bold mb-4">Your orders</h2>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-2xl font-bold">Your orders</h2>
+          <div className="flex items-center gap-3 text-xs text-blue-100">
+            {lastSynced && <span>Updated {lastSynced.toLocaleTimeString()}</span>}
+            <button type="button" onClick={handleRefresh} disabled={refreshing} className="rounded-full border border-white/40 px-4 py-1.5 text-sm font-bold text-white hover:bg-white/10 disabled:opacity-50">
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </button>
+          </div>
+        </div>
+        {syncError && <p role="alert" className="rounded-lg border border-rose-300/40 bg-rose-950/40 p-3 text-sm text-rose-100">We could not refresh your orders ({syncError}). You are seeing the last information saved on this device.</p>}
         {orders.map((o) => {
           const status = displayOrderStatus(o.status)
           const needsPayment = PAYABLE_STATUSES.includes(status)
@@ -97,10 +97,12 @@ export default function Orders({ account }) {
                     <strong>Payment was not accepted.</strong> {o.paymentRejectReason || 'Please check your proof of payment.'} Please upload a new proof below.
                   </div>
                 )}
-                {o.paymentStatus === 'Paid' && o.receiptURL && (
-                  <div className="flex flex-wrap items-center gap-3">
-                    {o.receiptNumber && <span><strong>Receipt No.:</strong> {o.receiptNumber}</span>}
-                    <button type="button" onClick={() => handleReceiptDownload(o.id)} className="font-bold text-yellow-300 underline">Download receipt PDF</button>
+                {o.paymentStatus === 'Paid' && (
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                    <span><strong>Receipt No.:</strong> {receiptNumberOf(o)}</span>
+                    <button type="button" onClick={() => setViewingId(o.id)} className="rounded-full bg-yellow-400 px-3 py-1 text-xs font-bold text-slate-950">View receipt</button>
+                    <button type="button" onClick={() => handleReceiptPrint(o)} className="rounded-full border border-white/40 px-3 py-1 text-xs font-bold hover:bg-white/10">Print</button>
+                    {o.receiptURL && <button type="button" onClick={() => handleReceiptDownload(o.id)} className="rounded-full border border-white/40 px-3 py-1 text-xs font-bold hover:bg-white/10">Download PDF</button>}
                   </div>
                 )}
                 {['Shipped', 'Delivered'].includes(status) && o.trackingNumber && (
@@ -121,6 +123,9 @@ export default function Orders({ account }) {
             </div>
           )
         })}
+        {orders.find((order) => order.id === viewingId) && (
+          <ReceiptViewer order={orders.find((order) => order.id === viewingId)} onClose={() => setViewingId(null)} />
+        )}
         {receiptError && <p role="alert" className="rounded-lg border border-rose-300/40 bg-rose-950/40 p-3 text-sm text-rose-100">{receiptError}</p>}
       </div>
     </div>

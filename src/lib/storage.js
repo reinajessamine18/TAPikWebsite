@@ -90,6 +90,16 @@ export function registerUser({ name, email, password }) {
   return user
 }
 
+export function changePassword(userId, currentPassword, newPassword) {
+  const users = loadUsers()
+  const user = users.find((account) => account.id === userId)
+  if (!user || user.password !== currentPassword) throw new Error('Your current password is incorrect.')
+  localStorage.setItem(
+    USERS_KEY,
+    JSON.stringify(users.map((account) => (account.id === userId ? { ...account, password: newPassword } : account)))
+  )
+}
+
 export function authenticateUser(email, password) {
   const normalizedEmail = email.trim().toLowerCase()
   const user = loadUsers().find(
