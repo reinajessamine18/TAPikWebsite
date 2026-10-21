@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import DemoQr from './DemoQr'
 import { api } from '../services/api'
 import { resizeImageToDataUrl } from '../lib/image'
@@ -8,6 +8,14 @@ export default function PaymentPanel({ order, account, onUpdated }) {
   const [proof, setProof] = useState(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+
+  // Warn before the tab is closed or refreshed while the proof is still uploading.
+  useEffect(() => {
+    if (!busy) return undefined
+    const warn = (event) => { event.preventDefault(); event.returnValue = '' }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [busy])
 
   const handleFile = async (event) => {
     const file = event.target.files?.[0]
@@ -37,16 +45,25 @@ export default function PaymentPanel({ order, account, onUpdated }) {
     setError('')
     try {
       const configured = api.isConfigured()
+      let current = order
       if (configured) {
+        if (!order.savedToAppsScript) {
+          // The order reaches the order database together with the payment, in this one step.
+          const created = await api.createOrder({ ...order, items: (order.items || []).map((item) => ({ ...item, image: '' })) })
+          if (!created.ok || !created.orderId) throw new Error(created.error || 'The order could not be saved.')
+          current = { ...order, trackingNumber: created.trackingNumber, courier: 'J&T Express', isSimulated: true, savedToAppsScript: true }
+        }
         const result = await api.submitPaymentProof({
-          orderId: order.id,
+          orderId: current.id,
           customerId: account.id,
           proofImage: proof,
+          // Artwork that has not been uploaded yet travels with the payment.
+          designs: (order.items || []).map((item) => (String(item.image || '').startsWith('data:image/') ? item.image : '')),
         })
         if (!result.ok) throw new Error(result.error || 'The proof of payment could not be saved.')
       }
       onUpdated({
-        ...order,
+        ...current,
         status: 'Payment submitted',
         paymentStatus: 'Submitted',
         paymentRejectReason: '',
@@ -62,6 +79,15 @@ export default function PaymentPanel({ order, account, onUpdated }) {
 
   return (
     <form onSubmit={submit} className="tapik-surface grid gap-5 rounded-2xl border border-white/25 p-5 text-left sm:grid-cols-[180px_minmax(0,1fr)]">
+      {busy && (
+        <div className="fixed inset-0 z-[100001] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="alertdialog" aria-modal="true" aria-live="assertive" aria-labelledby="submitting-payment-title">
+          <div className="tapik-surface w-full max-w-sm rounded-3xl border border-white/25 p-8 text-center">
+            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-white/25 border-t-yellow-400" />
+            <h2 id="submitting-payment-title" className="text-xl font-bold">Submitting your payment…</h2>
+            <p className="mt-2 text-sm text-blue-100">This can take a few seconds while we save your order and upload your proof of payment and design. Please don't close or refresh this page.</p>
+          </div>
+        </div>
+      )}
       <div>
         <DemoQr seed={order.id} />
         <p className="mt-2 text-center text-xs font-bold uppercase tracking-wide text-yellow-300">Demo QR · not a real payment</p>

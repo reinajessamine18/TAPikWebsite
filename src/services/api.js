@@ -17,6 +17,9 @@ async function call(action, payload, method = 'GET') {
   if (!res.ok) throw new Error(`Apps Script request failed (${res.status})`)
   const result = await res.json()
   if (!result || typeof result !== 'object') throw new Error('Apps Script returned an invalid response')
+  if (result.ok === false && result.error === 'Unknown action') {
+    throw new Error('The order database is out of date. Deploy the latest Code.gs in Apps Script as a new version, then try again.')
+  }
   return result
 }
 
@@ -26,6 +29,8 @@ export const api = {
   getShippingRates: () => call('getShippingRates'),
   getOrders: () => call('getOrders'),
   getAdminData: () => call('getAdminData'),
+  getInventory: () => call('getInventory'),
+  updateInventory: (data) => call('updateInventory', data, 'POST'),
   getCustomerOrders: (data) => call('getCustomerOrders', data),
   getPaymentProof: (data) => call('getPaymentProof', data),
   submitPaymentProof: (data) => call('submitPaymentProof', data, 'POST'),

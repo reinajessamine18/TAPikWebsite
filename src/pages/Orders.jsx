@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { loadOrders, upsertOrders } from '../lib/storage'
+import { loadOrders, mergeRemoteOrders, upsertOrders } from '../lib/storage'
 import { displayOrderStatus, orderStatusColor, PAYABLE_STATUSES } from '../lib/orderStatus'
 import { api, downloadReceipt } from '../services/api'
 import PaymentPanel from '../components/PaymentPanel'
@@ -22,7 +22,7 @@ export default function Orders({ account }) {
       try {
         const result = await api.getCustomerOrders({ customerId: account.id })
         if (!active || !result.ok || !Array.isArray(result.data)) return
-        upsertOrders(result.data)
+        mergeRemoteOrders(result.data)
         setOrders(mine(loadOrders(), account.id))
       } catch {
         // Keep showing the orders saved in this browser when the sync fails.

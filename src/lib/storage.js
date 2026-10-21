@@ -43,6 +43,23 @@ export function upsertOrders(updated) {
   saveOrders([...updated, ...loadOrders().filter((order) => !ids.has(order.id))])
 }
 
+// Saves orders from the order database. Until a design has been uploaded to Drive, the database copy has no
+// image, so the full-size image kept in this browser is carried over.
+export function mergeRemoteOrders(remoteOrders) {
+  const local = new Map(loadOrders().map((order) => [order.id, order]))
+  upsertOrders(remoteOrders.map((order) => {
+    const previous = local.get(order.id)
+    if (!previous) return { ...order, savedToAppsScript: true }
+    return {
+      ...order,
+      savedToAppsScript: true,
+      items: (order.items || []).map((item, index) => (
+        item.image ? item : { ...item, image: previous.items?.[index]?.image || '' }
+      )),
+    }
+  }))
+}
+
 export function loadUsers() {
   try {
     const users = JSON.parse(localStorage.getItem(USERS_KEY)) || []

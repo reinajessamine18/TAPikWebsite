@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
-import { calculateShippingFee, METRO_MANILA_CITIES } from '../lib/pricing'
+import { useState } from 'react'
+import { calculateShippingFee, METRO_MANILA_CITIES, SHAPES, CHAINS } from '../lib/pricing'
 import { getBarangays } from '../data/metroManila'
 import { saveOrders, loadOrders, upsertOrders, loadDeliveryDetails, saveDeliveryDetails, newId } from '../lib/storage'
-import { api } from '../services/api'
+import { itemKey, useInventory } from '../lib/inventory'
 import { displayOrderStatus, PAYABLE_STATUSES } from '../lib/orderStatus'
 import PaymentPanel from '../components/PaymentPanel'
 
@@ -30,16 +30,8 @@ export default function Checkout({ cart, setCart, setPage, account }) {
     return !details || !isAddressComplete(details)
   })
   const [success, setSuccess] = useState(null)
-  const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState('')
-
-  // Warn before the tab is closed or refreshed while the order is still being saved.
-  useEffect(() => {
-    if (!submitting) return undefined
-    const warn = (event) => { event.preventDefault(); event.returnValue = '' }
-    window.addEventListener('beforeunload', warn)
-    return () => window.removeEventListener('beforeunload', warn)
-  }, [submitting])
+  const { inventory } = useInventory()
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0)
   const weight = cart.reduce((s, i) => s + (i.weightGrams || 50) * i.qty, 0)
@@ -57,17 +49,39 @@ export default function Checkout({ cart, setCart, setPage, account }) {
     setSavedDetails(next)
   }
 
-  const submit = async (e) => {
+  // Shapes and chains the cart needs more of than are in stock.
+  const shortItems = (() => {
+    if (!inventory) return []
+    const needed = {}
+    cart.forEach((item) => {
+      ;[itemKey('shape', item.shape), itemKey('chain', item.chain)].forEach((key) => {
+        needed[key] = (needed[key] || 0) + item.qty
+      })
+    })
+    return Object.keys(needed)
+      .filter((key) => inventory[key] && inventory[key].stock < needed[key])
+      .map((key) => {
+        const [type, id] = key.split(':')
+        const option = (type === 'shape' ? SHAPES : CHAINS).find((entry) => entry.id === id)
+        return `${option?.label || id} ${type}`
+      })
+  })()
+
+  // The order is only recorded in this browser here. It reaches the order database together
+  // with the proof of payment, so there is a single wait, at the payment step.
+  const submit = (e) => {
     e.preventDefault()
-    if (submitting) return
     if (!form.name || !form.phone || !form.street || !hasCity || !form.barangay) {
       alert('Please fill in the required delivery details, including your city and barangay.')
       setIsEditingDetails(true)
       return
     }
-    const orderId = newId('TAP')
+    if (shortItems.length) {
+      setSubmitError(`Sorry, we don't have enough stock for: ${shortItems.join(', ')}. Please adjust your cart.`)
+      return
+    }
     const order = {
-      id: orderId,
+      id: newId('TAP'),
       date: new Date().toISOString(),
       customer: { ...form },
       customerId: account.id,
@@ -79,30 +93,10 @@ export default function Checkout({ cart, setCart, setPage, account }) {
       paymentMethod: 'QR (demo)',
       paymentStatus: 'Pending',
     }
-    setSubmitting(true)
     setSubmitError('')
-    if (api.isConfigured()) {
-      try {
-        const result = await api.createOrder(order)
-        if (!result.ok || !result.orderId) {
-          throw new Error(result.error || 'Apps Script did not confirm that the order was saved.')
-        }
-        order.id = result.orderId
-        order.trackingNumber = result.trackingNumber
-        order.courier = 'J&T Express'
-        order.isSimulated = true
-        order.savedToAppsScript = true
-      } catch (error) {
-        setSubmitError(`The order could not be saved to the order database. Your cart is unchanged. ${error.message}`)
-        setSubmitting(false)
-        return
-      }
-    }
-    const orders = [order, ...loadOrders()]
-    saveOrders(orders)
+    saveOrders([order, ...loadOrders()])
     setCart([])
     setSuccess(order)
-    setSubmitting(false)
   }
 
   if (success) {
@@ -118,7 +112,7 @@ export default function Checkout({ cart, setCart, setPage, account }) {
             <p className="mt-2 text-blue-100">
               Thank you, {success.customer.name}.{' '}
               {needsPayment
-                ? 'Scan the QR code, then upload your proof of payment. You can also pay later from Your orders.'
+                ? 'Scan the QR code, then upload your proof of payment to send your order to us. You can also do this later from Your orders.'
                 : 'We will verify your payment, then start preparing your order. Your receipt will be available in Your orders once the payment is confirmed.'}
             </p>
             {needsPayment && (
@@ -153,15 +147,6 @@ export default function Checkout({ cart, setCart, setPage, account }) {
 
   return (
     <div className="min-h-screen text-white">
-      {submitting && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="alertdialog" aria-modal="true" aria-live="assertive" aria-labelledby="saving-order-title">
-          <div className="tapik-surface w-full max-w-sm rounded-3xl border border-white/25 p-8 text-center">
-            <div className="mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-4 border-white/25 border-t-yellow-400" />
-            <h2 id="saving-order-title" className="text-xl font-bold">Saving your order…</h2>
-            <p className="mt-2 text-sm text-blue-100">This can take a few seconds while we save your order and design. Please don't close or refresh this page.</p>
-          </div>
-        </div>
-      )}
       <div className="max-w-5xl mx-auto px-4 py-10 grid md:grid-cols-2 gap-6">
         <form onSubmit={submit} className="tapik-surface rounded-2xl border border-white/25 p-6 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -209,7 +194,7 @@ export default function Checkout({ cart, setCart, setPage, account }) {
           <p className="text-xs text-blue-200">
             The shipping fee is calculated from your delivery address and shown in the order summary.
           </p>
-          <button type="submit" disabled={submitting} className="w-full bg-yellow-400 text-blue-900 font-bold py-3 rounded-full disabled:opacity-60">{submitting ? 'Saving order...' : 'Place order'}</button>
+          <button type="submit" className="w-full bg-yellow-400 text-blue-900 font-bold py-3 rounded-full">Place order</button>
         </form>
 
         <div className="tapik-surface rounded-2xl border border-white/25 p-6 h-fit">

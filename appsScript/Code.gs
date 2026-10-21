@@ -7,13 +7,158 @@ const PROOF_FOLDER_NAME = 'TAPik Payment Proofs'
 // Optional Orders columns. They are added automatically when missing.
 const ORDER_EXTRA_HEADERS = [
   'ReceiptNumber', 'ReceiptURL', 'Landmark', 'Barangay', 'City',
-  'ProofURL', 'ProofHash', 'PaymentSubmittedAt', 'PaymentVerifiedAt', 'PaymentRejectReason'
+  'ProofURL', 'ProofHash', 'PaymentSubmittedAt', 'PaymentVerifiedAt', 'PaymentRejectReason', 'StockDeducted'
 ]
 
 // Statuses an admin may pick by hand. Payment statuses only change through
 // submitPaymentProof and verifyPayment, so an order cannot skip verification.
 const FULFILLMENT_STATUSES = ['Being prepared', 'Packed', 'Shipped', 'Delivered']
 const PAYABLE_STATUSES = ['Awaiting payment', 'Payment rejected', 'Pending']
+
+// Keep in sync with SHAPES and CHAINS in src/lib/pricing.js.
+const INVENTORY_HEADERS = ['ItemType', 'ItemID', 'ItemName', 'Stock', 'Threshold', 'UpdatedAt']
+const INVENTORY_ITEMS = [
+  { type: 'shape', id: 'rectangle', name: 'Rectangle' },
+  { type: 'shape', id: 'curved', name: 'Curved Rectangle' },
+  { type: 'shape', id: 'round', name: 'Round' },
+  { type: 'shape', id: 'square', name: 'Square' },
+  { type: 'chain', id: 'ring', name: 'Ring' },
+  { type: 'chain', id: 'gold', name: 'Gold' },
+  { type: 'chain', id: 'silver', name: 'Silver' },
+  { type: 'chain', id: 'red', name: 'Red' },
+  { type: 'chain', id: 'orange', name: 'Orange' },
+  { type: 'chain', id: 'yellow', name: 'Yellow' },
+  { type: 'chain', id: 'green', name: 'Green' },
+  { type: 'chain', id: 'blue', name: 'Blue' },
+  { type: 'chain', id: 'purple', name: 'Purple' },
+  { type: 'chain', id: 'black', name: 'Black' },
+  { type: 'chain', id: 'white', name: 'White' },
+  { type: 'chain', id: 'lightpink', name: 'Light Pink' },
+  { type: 'chain', id: 'rosepink', name: 'Rose Pink' }
+]
+const DEFAULT_STOCK = 100
+const DEFAULT_THRESHOLD = 10
+
+// Creates the Inventory sheet on first use and adds a row for any shape or chain that has none.
+function ensureInventorySheet() {
+  let sheet = getDb().getSheetByName('Inventory')
+  if (!sheet) {
+    sheet = getDb().insertSheet('Inventory')
+    sheet.appendRow(INVENTORY_HEADERS)
+  }
+  assertHeaders('Inventory', INVENTORY_HEADERS)
+  const existing = sheetToObjects(sheet)
+  INVENTORY_ITEMS.forEach(function (item) {
+    const found = existing.some(function (row) {
+      return row.ItemType === item.type && row.ItemID === item.id
+    })
+    if (!found) {
+      sheet.appendRow([item.type, item.id, item.name, DEFAULT_STOCK, DEFAULT_THRESHOLD, new Date()])
+    }
+  })
+  return sheet
+}
+
+function getInventory() {
+  const lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    const rows = sheetToObjects(ensureInventorySheet())
+    return {
+      ok: true,
+      data: rows.map(function (row) {
+        return {
+          type: row.ItemType,
+          id: row.ItemID,
+          name: row.ItemName,
+          stock: Number(row.Stock) || 0,
+          threshold: Number(row.Threshold) || 0
+        }
+      })
+    }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+function updateInventory(data) {
+  const stock = Math.floor(Number(data.stock))
+  const threshold = Math.floor(Number(data.threshold))
+  if (!(stock >= 0) || !(threshold >= 0)) {
+    return { ok: false, error: 'Stock and threshold must be whole numbers of 0 or more.' }
+  }
+
+  const lock = LockService.getScriptLock()
+  lock.waitLock(10000)
+  try {
+    const sheet = ensureInventorySheet()
+    const values = sheet.getDataRange().getValues()
+    const headers = values[0]
+    const typeColumn = headers.indexOf('ItemType')
+    const idColumn = headers.indexOf('ItemID')
+    for (let row = 1; row < values.length; row++) {
+      if (values[row][typeColumn] === data.type && values[row][idColumn] === data.id) {
+        sheet.getRange(row + 1, headers.indexOf('Stock') + 1).setValue(stock)
+        sheet.getRange(row + 1, headers.indexOf('Threshold') + 1).setValue(threshold)
+        sheet.getRange(row + 1, headers.indexOf('UpdatedAt') + 1).setValue(new Date())
+        return { ok: true, stock: stock, threshold: threshold }
+      }
+    }
+    return { ok: false, error: 'Inventory item not found' }
+  } finally {
+    lock.releaseLock()
+  }
+}
+
+// How many of each shape and chain the given order items use (one of each per keychain).
+function inventoryNeeds(items) {
+  const needed = {}
+  items.forEach(function (item) {
+    const quantity = Number(item.qty) || 1
+    const parts = [['shape', item.shape], ['chain', item.chain]]
+    parts.forEach(function (part) {
+      if (!part[1]) return
+      const key = part[0] + ':' + part[1]
+      needed[key] = (needed[key] || 0) + quantity
+    })
+  })
+  return needed
+}
+
+// Throws when a new order needs more of a shape or chain than is in stock.
+function assertInStock(items) {
+  const needed = inventoryNeeds(items)
+  sheetToObjects(ensureInventorySheet()).forEach(function (row) {
+    const key = row.ItemType + ':' + row.ItemID
+    if (needed[key] && (Number(row.Stock) || 0) < needed[key]) {
+      throw new Error('Sorry, the ' + (row.ItemName || row.ItemID) + ' ' + row.ItemType
+        + ' no longer has enough stock for your order. Please adjust your cart.')
+    }
+  })
+}
+
+// direction -1 takes the items out of stock, +1 puts them back. Returns the keys that ran short.
+function adjustInventory(items, direction) {
+  const needed = inventoryNeeds(items)
+  const sheet = ensureInventorySheet()
+  const values = sheet.getDataRange().getValues()
+  const headers = values[0]
+  const typeColumn = headers.indexOf('ItemType')
+  const idColumn = headers.indexOf('ItemID')
+  const stockColumn = headers.indexOf('Stock')
+  const updatedColumn = headers.indexOf('UpdatedAt')
+  const shortages = []
+
+  for (let row = 1; row < values.length; row++) {
+    const key = values[row][typeColumn] + ':' + values[row][idColumn]
+    if (!needed[key]) continue
+    const next = (Number(values[row][stockColumn]) || 0) + direction * needed[key]
+    if (next < 0) shortages.push(key)
+    sheet.getRange(row + 1, stockColumn + 1).setValue(Math.max(0, next))
+    sheet.getRange(row + 1, updatedColumn + 1).setValue(new Date())
+  }
+  return shortages
+}
 
 function ensureOrderHeaders() {
   return ensureHeaders('Orders', ORDER_EXTRA_HEADERS)
@@ -100,6 +245,8 @@ function doGet(event) {
       result = getDesignImage(event.parameter.payload ? JSON.parse(event.parameter.payload) : {})
     } else if (action === 'getAdminData') {
       result = { ok: true, data: getAdminData() }
+    } else if (action === 'getInventory') {
+      result = getInventory()
     } else if (action === 'getCustomerOrders') {
       result = getCustomerOrders(event.parameter.payload ? JSON.parse(event.parameter.payload) : {})
     } else if (action === 'getPaymentProof') {
@@ -129,6 +276,8 @@ function doPost(event) {
       result = updateOrderStatus(payload.data || {})
     } else if (action === 'submitPaymentProof') {
       result = submitPaymentProof(payload.data || {})
+    } else if (action === 'updateInventory') {
+      result = updateInventory(payload.data || {})
     } else if (action === 'verifyPayment') {
       result = verifyPayment(payload.data || {})
     } else if (action === 'saveProduct') {
@@ -206,6 +355,7 @@ function createOrder(data) {
     const orderStatus = existingOrder.OrderStatus || 'Awaiting payment'
     const paymentMethod = existingOrder.PaymentMethod || 'QR (demo)'
     const paymentStatus = existingOrder.PaymentStatus || 'Pending'
+    if (!existingOrder.OrderID) assertInStock(items)
     const shipmentSheet = getSheet('Shipments')
     const existingShipment = sheetToObjects(shipmentSheet)
       .find((shipment) => String(shipment.OrderID || '') === String(orderId)) || {}
@@ -214,12 +364,12 @@ function createOrder(data) {
       ? existingTrackingNumber
       : genTrackingNumber()
 
-    // Upload designs before writing the order so a Drive permission error cannot leave a partial order.
-    const itemDetails = items.map((item) => ({
+    // Design files are uploaded to Drive when the customer submits payment, which keeps checkout quick.
+    const itemDetails = items.map((item, index) => ({
       name: item.shapeName || 'Custom keychain',
       shape: item.shape || '',
       chain: item.chain || '',
-      imageURL: saveDesignImage(item.image || ''),
+      imageURL: ((existingNotes.items || [])[index] || {}).imageURL || '',
       nfcLink: item.nfcLink || ''
     }))
     // The receipt is issued by verifyPayment once the payment is confirmed, so a new order has none.
@@ -250,6 +400,7 @@ function createOrder(data) {
       Barangay: customer.barangay || '',
       City: customer.city || '',
       ProofHash: existingOrder.ProofHash || '',
+      StockDeducted: existingOrder.StockDeducted || '',
       ProofURL: existingOrder.ProofURL || '',
       PaymentSubmittedAt: existingOrder.PaymentSubmittedAt || '',
       PaymentVerifiedAt: existingOrder.PaymentVerifiedAt || '',
@@ -364,7 +515,18 @@ function updateOrderStatus(data) {
     if (status !== 'Cancelled' && order.PaymentStatus !== 'Paid') {
       return { ok: false, error: 'Confirm the payment before preparing or shipping this order.' }
     }
-    updateOrderRow(data.orderId, { OrderStatus: status })
+    if (order.OrderStatus === 'Cancelled') {
+      return { ok: false, error: 'A cancelled order cannot be reopened.' }
+    }
+
+    const fields = { OrderStatus: status }
+    if (status === 'Cancelled' && order.StockDeducted === 'yes') {
+      // Cancelling a paid order puts its shapes and chains back in stock, once.
+      const cancelled = buildOrders('').find((entry) => entry.id === String(data.orderId))
+      adjustInventory(cancelled.items, 1)
+      fields.StockDeducted = 'no'
+    }
+    updateOrderRow(data.orderId, fields)
     syncShipmentStatus(data.orderId, status)
     return { ok: true }
   } finally {
@@ -391,8 +553,21 @@ function submitPaymentProof(data) {
       return { ok: false, error: 'Upload a screenshot or photo of your proof of payment.' }
     }
 
+    // Upload any design files that have not reached Drive yet, then record the order's artwork links.
+    const notes = parseOrderNotes(order.Notes)
+    const noteItems = notes.items || []
+    const designs = Array.isArray(data.designs) ? data.designs : []
+    let designsSaved = false
+    noteItems.forEach(function (item, index) {
+      const design = designs[index]
+      if (!item.imageURL && typeof design === 'string' && design.indexOf('data:image/') === 0) {
+        item.imageURL = saveDesignImage(design)
+        designsSaved = true
+      }
+    })
+
     const proof = saveProofImage(data.proofImage, orderId)
-    updateOrderRow(orderId, {
+    const fields = {
       OrderStatus: 'Payment submitted',
       PaymentStatus: 'Submitted',
       ProofURL: proof.url,
@@ -400,7 +575,9 @@ function submitPaymentProof(data) {
       PaymentSubmittedAt: new Date(),
       PaymentVerifiedAt: '',
       PaymentRejectReason: ''
-    })
+    }
+    if (designsSaved) fields.Notes = JSON.stringify(notes)
+    updateOrderRow(orderId, fields)
     syncShipmentStatus(orderId, 'Payment submitted')
     return { ok: true, status: 'Payment submitted', paymentStatus: 'Submitted' }
   } finally {
@@ -437,6 +614,7 @@ function verifyPayment(data) {
     // Issue the receipt before saving the decision, so a Drive error cannot leave a paid order without one.
     let receiptNumber = ''
     let receiptURL = ''
+    let stockShortages = []
     if (confirmed) {
       const paidOrder = buildOrders('').find((entry) => entry.id === String(data.orderId))
       receiptNumber = 'RCP-' + paidOrder.id
@@ -454,6 +632,9 @@ function verifyPayment(data) {
       })
       fields.ReceiptNumber = receiptNumber
       fields.ReceiptURL = receiptURL
+      // Stock is taken out only now, when the payment is confirmed.
+      stockShortages = adjustInventory(paidOrder.items, -1)
+      fields.StockDeducted = 'yes'
     }
 
     updateOrderRow(data.orderId, fields)
@@ -465,7 +646,8 @@ function verifyPayment(data) {
       paymentVerifiedAt: confirmed ? fields.PaymentVerifiedAt : '',
       paymentRejectReason: confirmed ? '' : reason,
       receiptNumber: receiptNumber,
-      receiptURL: receiptURL
+      receiptURL: receiptURL,
+      stockShortages: stockShortages
     }
   } finally {
     lock.releaseLock()

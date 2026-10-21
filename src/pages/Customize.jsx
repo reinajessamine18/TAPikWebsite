@@ -10,6 +10,7 @@ import {
   computePrice,
 } from '../lib/pricing'
 import { newId } from '../lib/storage'
+import { itemKey, useInventory } from '../lib/inventory'
 
 import uploadDesign from '../assets/uploadDesign.png'
 import nfcLink from '../assets/nfcLink.png'
@@ -18,10 +19,10 @@ import minusButton from '../assets/minusbutton.png'
 
 export default function Customize({ onAddToCart }) {
   const [image, setImage] = useState(null)
-  const [shape, setShape] = useState('round')
-  const [chain, setChain] = useState('gold')
+  const [shapeChoice, setShape] = useState('round')
+  const [chainChoice, setChain] = useState('gold')
   const [nfcLinkValue, setNfcLinkValue] = useState('')
-  const [qty, setQty] = useState(1)
+  const [qtyChoice, setQty] = useState(1)
 
   const [showNfcPopup, setShowNfcPopup] = useState(false)
   const [nfcDraft, setNfcDraft] = useState('')
@@ -29,6 +30,17 @@ export default function Customize({ onAddToCart }) {
 
   const fileInputRef = useRef(null)
   const [imageError, setImageError] = useState('')
+
+  // Shapes and chains with no stock left cannot be chosen. Without an order database everything is available.
+  const { inventory } = useInventory()
+  const stockOf = (type, id) => inventory?.[itemKey(type, id)]?.stock ?? Infinity
+  const availableShapes = SHAPES.filter((s) => stockOf('shape', s.id) > 0)
+  const availableChains = CHAINS.filter((c) => stockOf('chain', c.id) > 0)
+  const shape = availableShapes.find((s) => s.id === shapeChoice)?.id ?? availableShapes[0]?.id ?? shapeChoice
+  const chain = availableChains.find((c) => c.id === chainChoice)?.id ?? availableChains[0]?.id ?? chainChoice
+  const soldOut = availableShapes.length === 0 || availableChains.length === 0
+  const maxQty = Math.max(1, Math.min(stockOf('shape', shape), stockOf('chain', chain)))
+  const qty = Math.min(qtyChoice, maxQty)
 
   const price = computePrice({ shape, chain })
 
@@ -38,15 +50,17 @@ export default function Customize({ onAddToCart }) {
   const selectedChain = CHAINS.find((c) => c.id === chain)
 
   const cycleShape = (dir) => {
-    const idx = SHAPES.findIndex((s) => s.id === shape)
-    const next = (idx + dir + SHAPES.length) % SHAPES.length
-    setShape(SHAPES[next].id)
+    if (!availableShapes.length) return
+    const idx = availableShapes.findIndex((s) => s.id === shape)
+    const next = (idx + dir + availableShapes.length) % availableShapes.length
+    setShape(availableShapes[next].id)
   }
 
   const cycleChain = (dir) => {
-    const idx = CHAINS.findIndex((c) => c.id === chain)
-    const next = (idx + dir + CHAINS.length) % CHAINS.length
-    setChain(CHAINS[next].id)
+    if (!availableChains.length) return
+    const idx = availableChains.findIndex((c) => c.id === chain)
+    const next = (idx + dir + availableChains.length) % availableChains.length
+    setChain(availableChains[next].id)
   }
 
   const handleOpenFilePicker = () => {
@@ -143,7 +157,7 @@ export default function Customize({ onAddToCart }) {
     !nfcLinkValue && 'add your NFC link',
   ].filter(Boolean)
 
-  const canAdd = missingRequirements.length === 0
+  const canAdd = missingRequirements.length === 0 && !soldOut
 
   const handleAdd = () => {
     if (!canAdd) return
@@ -295,9 +309,7 @@ export default function Customize({ onAddToCart }) {
                 <div className="tapik-customize-quantity-control">
                   <button
                     type="button"
-                    onClick={() =>
-                      setQty((current) => Math.max(1, current - 1))
-                    }
+                    onClick={() => setQty(Math.max(1, qty - 1))}
                     disabled={qty <= 1}
                     aria-label="Decrease quantity"
                     className="tapik-customize-qty-button"
@@ -311,7 +323,8 @@ export default function Customize({ onAddToCart }) {
 
                   <button
                     type="button"
-                    onClick={() => setQty((current) => current + 1)}
+                    onClick={() => setQty(Math.min(maxQty, qty + 1))}
+                    disabled={qty >= maxQty}
                     aria-label="Increase quantity"
                     className="tapik-customize-qty-button"
                   >
@@ -365,7 +378,19 @@ export default function Customize({ onAddToCart }) {
                 <strong>PHP {(price * qty).toFixed(2)}</strong>
               </div>
 
-              {!canAdd && (
+              {soldOut && (
+                <p className="tapik-customize-requirements" role="alert">
+                  Sorry, this keychain is currently out of stock.
+                </p>
+              )}
+
+              {!soldOut && Number.isFinite(maxQty) && maxQty <= 10 && (
+                <p className="tapik-customize-requirements">
+                  Only {maxQty} left in stock for this combination.
+                </p>
+              )}
+
+              {!canAdd && !soldOut && (
                 <p className="tapik-customize-requirements" role="status">
                   To add this to your cart, please{' '}
                   {missingRequirements.join(' and ')}.

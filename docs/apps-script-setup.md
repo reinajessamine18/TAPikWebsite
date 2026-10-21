@@ -11,7 +11,7 @@ Create a Google spreadsheet named `TAPik Database` with these tabs. Put each com
 - `ShippingRates`: `RateID, DestinationProvince, DestinationCity, DestinationZIP, MinWeightGrams, MaxWeightGrams, ShippingFee, IsActive`
 - `Shipments`: `ShipmentID, OrderID, Courier, TrackingNumber, ShipmentStatus, RecipientName, RecipientPhone, DeliveryAddress, BookedAt, ShippedAt, DeliveredAt, TrackingURL, IsSimulated, Remarks`
 
-Keep the listed core headers unchanged; the Apps Script reads and updates rows by header name. It automatically adds these optional columns to `Orders` if they are not present: `ReceiptNumber`, `ReceiptURL`, `Landmark`, `Barangay`, `City`, `ProofURL`, `ProofHash`, `PaymentSubmittedAt`, `PaymentVerifiedAt`, `PaymentRejectReason`.
+Keep the listed core headers unchanged; the Apps Script reads and updates rows by header name. It automatically adds these optional columns to `Orders` if they are not present: `ReceiptNumber`, `ReceiptURL`, `Landmark`, `Barangay`, `City`, `ProofURL`, `ProofHash`, `PaymentSubmittedAt`, `PaymentVerifiedAt`, `PaymentRejectReason`, `StockDeducted`.
 
 ### Payment flow
 
@@ -26,11 +26,15 @@ New orders start as `Awaiting payment` (`PaymentStatus` = `Pending`, `PaymentMet
 
 After editing `appsScript/Code.gs`, deploy a new version of the web app and update the deployment if the URL changes. The Admin -> Apps Script tab can test the deployed endpoint and sync the order feed.
 
-Custom item artwork and NFC targets are stored as JSON in the order's `Notes` cell because the requested `OrderItems` schema has no image or link columns. Uploaded artwork files are saved in a Drive folder named `TAPik Customer Designs`; a direct image URL and the NFC target are included in that order metadata. The admin order list shows the customer's uploaded artwork (not the keychain mockup) and provides links to view and download the original. The current implementation grants anyone with the file link viewer access so the admin page can display it. Treat those image links as public.
+Custom item artwork and NFC targets are stored as JSON in the order's `Notes` cell because the requested `OrderItems` schema has no image or link columns. Placing an order does not upload artwork, which keeps checkout fast. Uploaded artwork files are saved in a Drive folder named `TAPik Customer Designs` when the customer submits their proof of payment (so admins see artwork only for orders that have a proof); a direct image URL and the NFC target are included in that order metadata. The admin order list shows the customer's uploaded artwork (not the keychain mockup) and provides links to view and download the original. The current implementation grants anyone with the file link viewer access so the admin page can display it. Treat those image links as public.
 
 All current shipments are simulated. Apps Script assigns each new shipment a simulated J&T Express tracking number in `JT-` followed by digits format, and replaces missing or incorrectly formatted numbers on existing simulated shipments when Admin data is loaded. These numbers are for demonstration only and are not valid with the real courier. They are stored in the matching `Shipments` row and shown read-only in Admin.
 
 Each new order also receives a numbered PDF order receipt/payment acknowledgment. Apps Script stores the PDF in the `TAPik Receipts` Drive folder and stores its receipt number and download URL in the `ReceiptNumber` and `ReceiptURL` columns on the `Orders` sheet. The script adds these two columns automatically if missing. Checkout, Orders, and Admin request the stored PDF through the Apps Script `getReceipt` action for download. Admin artwork previews are loaded through `getDesignImage`, which returns a thumbnail from the `TAPik Customer Designs` folder. These actions require the deployed script account to have Drive access and the latest script version to be deployed. This is an order receipt, not a BIR-registered tax invoice; the PDF does not represent payment as complete unless the saved payment status is `Paid`. Drive files are shared with anyone who has the link so customers can download them; links should be treated as public.
+
+### Inventory
+
+Apps Script creates an `Inventory` sheet automatically the first time inventory is read (`ItemType, ItemID, ItemName, Stock, Threshold, UpdatedAt`), with one row per shape and chain, each starting at stock 100 and a low-stock warning at 10. Admin -> Inventory edits these numbers (`updateInventory`). Each keychain uses one shape and one chain. New orders are refused when a shape or chain does not have enough stock. Stock is deducted only when a payment is confirmed (`StockDeducted` = `yes` on the order) and restored once if that paid order is later cancelled. The customer Customize page hides shapes and chains that have no stock. When you add a shape or chain in `src/lib/pricing.js`, add it to `INVENTORY_ITEMS` in `Code.gs` as well.
 
 ### Authorize uploaded-design storage
 
