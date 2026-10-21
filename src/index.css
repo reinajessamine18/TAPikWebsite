@@ -1041,9 +1041,22 @@ textarea:focus-visible {
   transition: background-color 160ms ease, transform 160ms ease;
 }
 
-.tapik-customize-add-button:hover {
+.tapik-customize-add-button:hover:not(:disabled) {
   background: #ffd080;
   transform: translateY(-1px);
+}
+
+.tapik-customize-add-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.tapik-customize-requirements {
+  margin-top: 12px;
+  color: #ffd080;
+  font-size: 13px;
+  text-align: center;
 }
 
 @media (max-width: 560px) {

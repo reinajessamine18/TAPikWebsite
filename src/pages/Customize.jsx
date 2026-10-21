@@ -138,7 +138,16 @@ export default function Customize({ onAddToCart }) {
     setShowNfcPopup(false)
   }
 
+  const missingRequirements = [
+    !image && 'upload your design',
+    !nfcLinkValue && 'add your NFC link',
+  ].filter(Boolean)
+
+  const canAdd = missingRequirements.length === 0
+
   const handleAdd = () => {
+    if (!canAdd) return
+
     const item = {
       id: newId('item'),
       shape,
@@ -356,9 +365,17 @@ export default function Customize({ onAddToCart }) {
                 <strong>PHP {(price * qty).toFixed(2)}</strong>
               </div>
 
+              {!canAdd && (
+                <p className="tapik-customize-requirements" role="status">
+                  To add this to your cart, please{' '}
+                  {missingRequirements.join(' and ')}.
+                </p>
+              )}
+
               <button
                 type="button"
                 onClick={handleAdd}
+                disabled={!canAdd}
                 className="tapik-customize-add-button"
               >
                 Add to cart
