@@ -1,5 +1,6 @@
-import React from 'react'
-import { CLASP_ART } from './keychainParts'
+import React, { useRef } from 'react'
+import { ACRYLIC_SHAPES, CLASP_ART } from './keychainParts'
+import { clampCrop, imageStyle } from '../lib/designCrop'
 import leftArrow from '../assets/leftArrow.png'
 import rightArrow from '../assets/rightArrow.png'
 import ntag from '../assets/ntag.png'
@@ -17,13 +18,6 @@ const STAGE_W = 520
 const STAGE_H = 440
 // The keychain itself stays 360px wide inside the wider stage
 const KEYCHAIN_W_PERCENT = (360 / STAGE_W) * 100
-
-const ACRYLIC_SHAPES = {
-  rectangle: { width: 44, ratio: 1.45, radius: '10px' },
-  curved:    { width: 44, ratio: 1.45, radius: '38px 10px 38px 10px' },
-  round:     { width: 52, ratio: 1.0,  radius: '50%' },
-  square:    { width: 50, ratio: 1.0,  radius: '10px' },
-}
 
 const HOLE = 0.075
 
@@ -51,6 +45,9 @@ export default function KeychainPreview({
   shape = 'round',
   chain = 'gold',
   image = null,
+  crop = null, // { zoom, cx, cy }: how the design is zoomed and moved. Without it the design just fills the window.
+  imageAspect = null, // the design's width / height, needed with crop
+  onCropChange, // when given, the design can be dragged (and moved with the arrow keys) inside the acrylic
   onPrevChain,
   onNextChain,
   onPrevShape,
@@ -66,6 +63,45 @@ export default function KeychainPreview({
   )}% ${clasp.anchorX - 16}%)`
 
   const clasp3d = { filter: 'drop-shadow(2px 4px 3px rgba(25,67,83,0.35))' }
+
+  // The design window is the white area inside the acrylic. Its width / height follows the acrylic's shape.
+  const windowAspect = 1 / a.ratio
+  const adjustable = Boolean(image && crop && imageAspect)
+  const editable = adjustable && Boolean(onCropChange)
+  const current = adjustable ? clampCrop(crop, windowAspect, imageAspect) : null
+  const drag = useRef(null)
+
+  const startDrag = (event) => {
+    if (!editable) return
+    const box = event.currentTarget.getBoundingClientRect()
+    event.currentTarget.setPointerCapture(event.pointerId)
+    drag.current = { x: event.clientX, y: event.clientY, cx: current.cx, cy: current.cy, w: box.width, h: box.height }
+  }
+  const moveDrag = (event) => {
+    const start = drag.current
+    if (!start) return
+    onCropChange(clampCrop({
+      zoom: current.zoom,
+      cx: start.cx + (event.clientX - start.x) / start.w,
+      cy: start.cy + (event.clientY - start.y) / start.h,
+    }, windowAspect, imageAspect))
+  }
+  const endDrag = () => { drag.current = null }
+  const onKeyDown = (event) => {
+    if (!editable) return
+    const step = 0.03
+    const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }
+    if (moves[event.key]) {
+      event.preventDefault()
+      onCropChange(clampCrop({ ...current, cx: current.cx + moves[event.key][0], cy: current.cy + moves[event.key][1] }, windowAspect, imageAspect))
+    } else if (event.key === '+' || event.key === '=') {
+      event.preventDefault()
+      onCropChange(clampCrop({ ...current, zoom: current.zoom + 0.1 }, windowAspect, imageAspect))
+    } else if (event.key === '-') {
+      event.preventDefault()
+      onCropChange(clampCrop({ ...current, zoom: current.zoom - 0.1 }, windowAspect, imageAspect))
+    }
+  }
 
   return (
     /* STAGE: invisible, fixed-size box. Nothing inside it can move the arrows. */
@@ -188,7 +224,18 @@ export default function KeychainPreview({
               style={{
                 inset: '9%',
                 borderRadius: shape === 'round' ? '50%' : '8px',
+                ...(editable ? { cursor: 'grab', touchAction: 'none' } : {}),
               }}
+              {...(editable ? {
+                tabIndex: 0,
+                role: 'group',
+                'aria-label': 'Your design. Drag, or use the arrow keys, to move it. Plus and minus zoom.',
+                onPointerDown: startDrag,
+                onPointerMove: moveDrag,
+                onPointerUp: endDrag,
+                onPointerCancel: endDrag,
+                onKeyDown,
+              } : {})}
             >
               {/* NFC sticker: the middle layer, between the acrylic and the design */}
               <img
@@ -205,13 +252,20 @@ export default function KeychainPreview({
               />
 
               {/* Customer design: the top layer, covers the sticker once uploaded */}
-              {image && (
+              {image && (adjustable ? (
+                <img
+                  src={image}
+                  alt="Your design"
+                  draggable={false}
+                  style={imageStyle(current, windowAspect, imageAspect)}
+                />
+              ) : (
                 <img
                   src={image}
                   alt="Your design"
                   className="absolute inset-0 h-full w-full bg-white object-cover"
                 />
-              )}
+              ))}
             </div>
 
               <div

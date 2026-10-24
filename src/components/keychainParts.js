@@ -12,6 +12,14 @@ import white from '../assets/clasps/white.png'
 import lightpink from '../assets/clasps/lightpink.png'
 import rosepink from '../assets/clasps/rosepink.png'
 
+// Acrylic body shapes: width (% of the keychain), height / width ratio, and corner radius.
+export const ACRYLIC_SHAPES = {
+  rectangle: { width: 44, ratio: 1.45, radius: '10px' },
+  curved:    { width: 44, ratio: 1.45, radius: '38px 10px 38px 10px' },
+  round:     { width: 52, ratio: 1.0,  radius: '50%' },
+  square:    { width: 50, ratio: 1.0,  radius: '10px' },
+}
+
 const W = 30 // was 42
 
 const base = { width: W, anchorX: 33, anchorY: 86, metal: '#c9c9c9' }

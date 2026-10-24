@@ -1,5 +1,8 @@
 import React, { useRef, useState } from 'react'
 import KeychainPreview from '../components/KeychainPreview'
+import DesignAdjust from '../components/DesignAdjust'
+import { ACRYLIC_SHAPES } from '../components/keychainParts'
+import { DEFAULT_CROP, bakeCrop, clampCrop, loadImage } from '../lib/designCrop'
 import {
   SHAPES,
   CHAINS,
@@ -19,6 +22,9 @@ import minusButton from '../assets/minusbutton.png'
 
 export default function Customize({ onAddToCart }) {
   const [image, setImage] = useState(null)
+  const [imageAspect, setImageAspect] = useState(null)
+  const [crop, setCrop] = useState(DEFAULT_CROP)
+  const [adding, setAdding] = useState(false)
   const [shapeChoice, setShape] = useState('round')
   const [chainChoice, setChain] = useState('gold')
   const [nfcLinkValue, setNfcLinkValue] = useState('')
@@ -43,6 +49,10 @@ export default function Customize({ onAddToCart }) {
   const qty = Math.min(qtyChoice, maxQty)
 
   const price = computePrice({ shape, chain })
+
+  // The design window is as wide as it is tall divided by the shape's ratio (the tall shapes are narrower).
+  const windowAspect = 1 / (ACRYLIC_SHAPES[shape] || ACRYLIC_SHAPES.round).ratio
+  const changeZoom = (zoom) => setCrop((current) => clampCrop({ ...current, zoom }, windowAspect, imageAspect || 1))
 
   const selectedShape =
     SHAPES.find((s) => s.id === shape) || SHAPES[0]
@@ -87,8 +97,15 @@ export default function Customize({ onAddToCart }) {
     const reader = new FileReader()
 
     reader.onload = () => {
-      setImage(reader.result)
-      setImageError('')
+      // Read the picture's shape first: zooming and moving it depends on its width and height.
+      loadImage(reader.result)
+        .then((loaded) => {
+          setImage(reader.result)
+          setImageAspect(loaded.naturalWidth / loaded.naturalHeight)
+          setCrop(DEFAULT_CROP)
+          setImageError('')
+        })
+        .catch(() => setImageError('The image could not be opened. Please try another file.'))
     }
 
     reader.onerror = () => {
@@ -102,6 +119,8 @@ export default function Customize({ onAddToCart }) {
 
   const handleRemoveImage = () => {
     setImage(null)
+    setImageAspect(null)
+    setCrop(DEFAULT_CROP)
     setImageError('')
   }
 
@@ -159,22 +178,29 @@ export default function Customize({ onAddToCart }) {
 
   const canAdd = missingRequirements.length === 0 && !soldOut
 
-  const handleAdd = () => {
-    if (!canAdd) return
+  const handleAdd = async () => {
+    if (!canAdd || adding) return
+    setAdding(true)
 
-    const item = {
-      id: newId('item'),
-      shape,
-      chain,
-      nfc: true,
-      nfcLink: nfcLinkValue,
-      image,
-      price,
-      qty,
-      weightGrams: 50,
+    try {
+      // Save only what shows inside the acrylic, so the cart, the order and the admin all see the cut design.
+      const visibleDesign = await bakeCrop(image, crop, windowAspect)
+      onAddToCart({
+        id: newId('item'),
+        shape,
+        chain,
+        nfc: true,
+        nfcLink: nfcLinkValue,
+        image: visibleDesign,
+        price,
+        qty,
+        weightGrams: 50,
+      })
+    } catch {
+      setImageError('Your design could not be prepared. Please upload it again.')
+    } finally {
+      setAdding(false)
     }
-
-    onAddToCart(item)
   }
 
   const actionTextClass =
@@ -199,6 +225,9 @@ export default function Customize({ onAddToCart }) {
                 shape={shape}
                 chain={chain}
                 image={image}
+                crop={crop}
+                imageAspect={imageAspect}
+                onCropChange={setCrop}
                 onPrevChain={() => cycleChain(-1)}
                 onNextChain={() => cycleChain(1)}
                 onPrevShape={() => cycleShape(-1)}
@@ -211,6 +240,10 @@ export default function Customize({ onAddToCart }) {
               </span>
 
             </div>
+
+            {image && imageAspect && (
+              <DesignAdjust zoom={clampCrop(crop, windowAspect, imageAspect).zoom} onZoom={changeZoom} onReset={() => setCrop(DEFAULT_CROP)} />
+            )}
 
             {/* UPLOAD AND NFC BUTTONS */}
             <div className="grid grid-cols-2 gap-4">
@@ -400,10 +433,10 @@ export default function Customize({ onAddToCart }) {
               <button
                 type="button"
                 onClick={handleAdd}
-                disabled={!canAdd}
+                disabled={!canAdd || adding}
                 className="tapik-customize-add-button"
               >
-                Add to cart
+                {adding ? 'Preparing your design…' : 'Add to cart'}
               </button>
             </div>
           </div>
