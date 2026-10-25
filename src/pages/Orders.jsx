@@ -4,6 +4,7 @@ import { displayOrderStatus, orderStatusColor, PAYABLE_STATUSES } from '../lib/o
 import { downloadReceipt } from '../services/api'
 import PaymentPanel from '../components/PaymentPanel'
 import ReceiptViewer from '../components/ReceiptViewer'
+import CustomerOrderDetails from '../components/CustomerOrderDetails'
 import { buildReceiptHtml, receiptNumberOf } from '../lib/receipt'
 import { openPrintableReport } from '../lib/reports'
 
@@ -12,6 +13,7 @@ export default function Orders({ account, ordersState }) {
   const { orders, reload, refresh, error: syncError, lastSynced } = ordersState
   const [payingId, setPayingId] = useState(null)
   const [viewingId, setViewingId] = useState(null)
+  const [detailsId, setDetailsId] = useState(null)
   const [refreshing, setRefreshing] = useState(false)
 
   const handleRefresh = async () => {
@@ -70,7 +72,11 @@ export default function Orders({ account, ordersState }) {
           const status = displayOrderStatus(o.status)
           const needsPayment = PAYABLE_STATUSES.includes(status)
           return (
-            <div key={o.id} className="tapik-surface rounded-2xl border border-white/25 p-5">
+            <div
+              key={o.id}
+              className="tapik-surface cursor-pointer rounded-2xl border border-white/25 p-5 transition hover:border-white/60"
+              onClick={(event) => { if (!event.target.closest('button, a, input, select, textarea, label, form')) setDetailsId(o.id) }}
+            >
               <div className="flex flex-wrap justify-between gap-2 mb-2">
                 <div>
                   <div className="font-bold">{o.id}</div>
@@ -111,20 +117,32 @@ export default function Orders({ account, ordersState }) {
                   <div><strong>Tracking ID:</strong> {o.trackingNumber}</div>
                 )}
               </div>
-              {needsPayment && (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => setDetailsId(o.id)} className="rounded-full border border-white/40 px-4 py-2 text-sm font-bold hover:bg-white/10">View details</button>
+                {needsPayment && payingId !== o.id && (
+                  <button type="button" onClick={() => setPayingId(o.id)} className="rounded-full bg-yellow-400 px-5 py-2 font-bold text-blue-900">
+                    {status === 'Payment rejected' ? 'Upload new proof of payment' : 'Pay now'}
+                  </button>
+                )}
+              </div>
+              {needsPayment && payingId === o.id && (
                 <div className="mt-4">
-                  {payingId === o.id ? (
-                    <PaymentPanel order={o} account={account} onUpdated={handlePaymentUpdated} />
-                  ) : (
-                    <button type="button" onClick={() => setPayingId(o.id)} className="rounded-full bg-yellow-400 px-5 py-2 font-bold text-blue-900">
-                      {status === 'Payment rejected' ? 'Upload new proof of payment' : 'Pay now'}
-                    </button>
-                  )}
+                  <PaymentPanel order={o} account={account} onUpdated={handlePaymentUpdated} />
                 </div>
               )}
             </div>
           )
         })}
+        {orders.find((order) => order.id === detailsId) && (
+          <CustomerOrderDetails
+            order={orders.find((order) => order.id === detailsId)}
+            onClose={() => setDetailsId(null)}
+            onPay={(order) => { setDetailsId(null); setPayingId(order.id) }}
+            onViewReceipt={(order) => setViewingId(order.id)}
+            onPrintReceipt={handleReceiptPrint}
+            onDownloadReceipt={handleReceiptDownload}
+          />
+        )}
         {orders.find((order) => order.id === viewingId) && (
           <ReceiptViewer order={orders.find((order) => order.id === viewingId)} onClose={() => setViewingId(null)} />
         )}

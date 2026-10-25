@@ -47,6 +47,13 @@
   letter-spacing: 0.01em;
 }
 
+/* Opt a heading out of the decorative display font. */
+.tapik-app .tapik-heading-body {
+  font-family: var(--font-body);
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
 /* Admin is data-heavy: use the readable font for its headings too. */
 .tapik-admin h1,
 .tapik-admin h2,
@@ -86,6 +93,11 @@ button {
 
 .tapik-home {
   font-family: var(--font-display);
+}
+
+/* The latest-order card reads like the Your orders page: same readable font for all its text. */
+.tapik-home .tapik-order-card {
+  font-family: var(--font-body);
 }
 
 .tapik-pagination-previous {
