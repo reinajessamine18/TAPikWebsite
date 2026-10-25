@@ -1,5 +1,4 @@
 
-import React from 'react'
 import KeychainPreview from '../components/KeychainPreview'
 import addButton from '../assets/addbutton.png'
 import minusButton from '../assets/minusbutton.png'
@@ -65,7 +64,6 @@ export default function Cart({ cart, setCart, setPage }) {
       <div className="tapik-cart-container">
         <div className="tapik-cart-heading">
           <div>
-            <p className="tapik-eyebrow">YOUR TAPik ORDER</p>
             <h1>Shopping Cart</h1>
             <p className="tapik-cart-subtitle">
               Review your personalized keychains before checkout.

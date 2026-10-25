@@ -132,8 +132,7 @@ export default function Profile({ account, setPage, orders }) {
     <div className="min-h-screen text-white">
       <div className="mx-auto max-w-5xl space-y-6 px-4 py-10">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-300">Your account</p>
-          <h1 className="mt-1 text-3xl font-black">{name}</h1>
+          <h1 className="text-3xl font-black">{name}</h1>
           <p className="break-all text-blue-100">{account.email}</p>
         </div>
 

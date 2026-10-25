@@ -18,7 +18,7 @@ import bg from './assets/TAPikbg.png'
 export default function App() {
   const [page, setPage] = useState('home')
   const [account, setAccount] = useState(loadSession)
-  const [cart, setCartState] = useState(() => loadSession() ? loadCart() : [])
+  const [cart, setCartState] = useState(loadCart)
   const [accountMode, setAccountMode] = useState('login')
   const [showAccountPrompt, setShowAccountPrompt] = useState(false)
   const [pendingItem, setPendingItem] = useState(null)
@@ -29,7 +29,7 @@ export default function App() {
   const { toasts, dismiss: dismissToast } = useStatusToasts(customerOrders.orders)
 
   useEffect(() => {
-    saveCart(account ? cart : [])
+    saveCart(cart)
   }, [account, cart])
 
   const setCart = (updater) => {
@@ -69,8 +69,6 @@ export default function App() {
 
   const signOut = () => {
     clearSession()
-    setCartState([])
-    saveCart([])
     setAccount(null)
     setPage('home')
   }
@@ -124,7 +122,7 @@ export default function App() {
   return (
     <div
       className="tapik-app"
-      style={{ backgroundImage: `linear-gradient(rgba(14, 58, 84, 0.6), rgba(14, 58, 84, 0.6)), url(${bg})` }}
+      style={{ backgroundImage: `url(${bg})` }}
     >
       {isAdmin ? (
         <header className="tapik-admin-navbar">
@@ -171,8 +169,7 @@ function AccountRequired({ onSignIn, admin = false }) {
   return (
     <section className="flex min-h-[55vh] items-center justify-center px-4 py-12 text-center text-white">
       <div className="max-w-md">
-        <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-300">Account required</p>
-        <h1 className="mt-3 text-3xl font-black">{admin ? 'Admin sign in required' : 'Please log in first'}</h1>
+        <h1 className="text-3xl font-black">{admin ? 'Admin sign in required' : 'Please log in first'}</h1>
         <p className="mt-3 text-blue-100">{admin ? 'Log in with the admin account to manage TAPik.' : 'Sign in or create an account to view your cart and orders.'}</p>
         <button type="button" onClick={onSignIn} className="mt-6 rounded-lg bg-yellow-400 px-6 py-3 font-bold text-slate-950 hover:bg-yellow-300">Log in or sign up</button>
       </div>

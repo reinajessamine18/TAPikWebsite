@@ -93,8 +93,10 @@ export default function Orders({ account, ordersState }) {
                   <div className="text-blue-100">Your proof of payment was received. We are verifying it and will start preparing your order once it is confirmed.</div>
                 )}
                 {status === 'Payment rejected' && (
-                  <div role="alert" className="rounded-lg border border-rose-300/40 bg-rose-950/40 p-3 text-rose-100">
-                    <strong>Payment was not accepted.</strong> {o.paymentRejectReason || 'Please check your proof of payment.'} Please upload a new proof below.
+                  <div role="alert" className="rounded-lg border border-rose-300/60 bg-rose-50 p-3 text-rose-950">
+                    <strong>Payment was not accepted.</strong>
+                    <p className="mt-1">{o.paymentRejectReason || 'Please check your proof of payment.'}</p>
+                    <p className="mt-2">Please upload a new proof below.</p>
                   </div>
                 )}
                 {o.paymentStatus === 'Paid' && (

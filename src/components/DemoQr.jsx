@@ -45,7 +45,7 @@ export default function DemoQr({ seed }) {
       className="h-auto w-full rounded-lg bg-white"
       shapeRendering="crispEdges"
     >
-      <g fill="#0f172a">{cells}</g>
+      <g fill="#493f37">{cells}</g>
     </svg>
   )
 }

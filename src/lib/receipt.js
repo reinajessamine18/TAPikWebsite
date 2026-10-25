@@ -27,14 +27,14 @@ export function buildReceiptHtml(order) {
 
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(receiptNumberOf(order))}</title>
 <style>
-  body{font:14px Arial,sans-serif;color:#172554;margin:0;padding:32px;background:#fff}
-  h1{margin:0;color:#2563eb}.muted{color:#475569}.meta{margin:20px 0;line-height:1.7}
+  body{font:14px Arial,sans-serif;color:#493f37;margin:0;padding:32px;background:#fff}
+  h1{margin:0;color:#5799b1}.muted{color:#74665c}.meta{margin:20px 0;line-height:1.7}
   table{width:100%;border-collapse:collapse;margin-top:18px}
-  th,td{padding:9px 8px;border-bottom:1px solid #cbd5e1;text-align:left}th{background:#eff6ff}
+  th,td{padding:9px 8px;border-bottom:1px solid #e2d4c3;text-align:left}th{background:#fff8ec}
   .num{text-align:right;white-space:nowrap}.totals{margin:18px 0 0 auto;width:280px;line-height:1.9}
-  .totals div{display:flex;justify-content:space-between}.grand{font-weight:bold;border-top:1px solid #cbd5e1;margin-top:4px;padding-top:4px}
+  .totals div{display:flex;justify-content:space-between}.grand{font-weight:bold;border-top:1px solid #e2d4c3;margin-top:4px;padding-top:4px}
   .paid{display:inline-block;margin-top:6px;padding:2px 10px;border-radius:999px;background:#bbf7d0;color:#14532d;font-size:12px;font-weight:bold}
-  .notice{margin-top:28px;padding:10px 12px;background:#f1f5f9;font-size:11px;color:#475569}
+  .notice{margin-top:28px;padding:10px 12px;background:#fff8ec;font-size:11px;color:#74665c}
   @media print{body{padding:12mm}}
 </style></head><body>
 <h1>TAPik</h1>

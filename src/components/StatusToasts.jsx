@@ -13,7 +13,6 @@ function Toast({ toast, onDismiss, onView }) {
     <div role="status" className="tapik-surface rounded-xl border border-white/30 p-4 shadow-xl">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-bold uppercase tracking-wide text-yellow-300">Order update</p>
           <p className="mt-1 break-all text-sm font-semibold">{toast.id}</p>
           <p className="mt-1 text-sm">
             is now <span className={`tapik-status-badge ${orderStatusColor(toast.status)}`}>{toast.status}</span>

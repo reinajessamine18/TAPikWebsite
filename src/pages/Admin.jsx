@@ -42,6 +42,9 @@ export default function Admin() {
   const [orders, setOrders] = useState(loadOrders)
   const [notice, setNotice] = useState('')
   const [filters, setFilters] = useState(EMPTY_FILTERS)
+  const [ordersPage, setOrdersPage] = useState(1)
+  const [inventorySearch, setInventorySearch] = useState('')
+  const [inventoryPage, setInventoryPage] = useState(1)
   const [showReport, setShowReport] = useState(false)
   const [manualRefreshing, setManualRefreshing] = useState(false)
   const [showMoreFilters, setShowMoreFilters] = useState(false)
@@ -198,8 +201,10 @@ export default function Admin() {
   const changeDraft = (key, field, value) =>
     setStockDrafts((current) => ({ ...current, [key]: { ...current[key], [field]: value } }))
 
-  const setFilter = (key, value) =>
+  const setFilter = (key, value) => {
+    setOrdersPage(1)
     setFilters((current) => ({ ...current, [key]: value, ...(key === 'city' ? { barangay: '' } : {}) }))
+  }
 
   const goToTab = (item) => {
     setTab(item)
@@ -220,6 +225,9 @@ export default function Admin() {
   const recentOrders = [...orders].sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0)).slice(0, 5)
   const filteredOrders = filterOrders(orders, filters)
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+  const orderPageCount = Math.ceil(filteredOrders.length / 10)
+  const currentOrdersPage = Math.min(ordersPage, Math.max(1, orderPageCount))
+  const visibleOrders = filteredOrders.slice((currentOrdersPage - 1) * 10, currentOrdersPage * 10)
   const filterCount = activeFilterCount(filters)
   const chips = filterChips(filters)
   const kpis = orderKpis(filteredOrders)
@@ -231,6 +239,11 @@ export default function Admin() {
     ...SHAPES.map((item) => ({ type: 'shape', ...item })),
     ...CHAINS.map((item) => ({ type: 'chain', ...item })),
   ].map((item) => ({ ...item, row: inventory?.[itemKey(item.type, item.id)] }))
+  const matchingInventoryRows = inventoryRows.filter((item) =>
+    `${item.label} ${item.type}`.toLowerCase().includes(inventorySearch.trim().toLowerCase())
+  )
+  const inventoryPageCount = Math.ceil(matchingInventoryRows.length / 10)
+  const visibleInventoryRows = matchingInventoryRows.slice((inventoryPage - 1) * 10, inventoryPage * 10)
   const lowStockItems = inventoryRows.filter((item) => item.row && stockLevel(item.row) !== 'ok')
   const reviewOrder = orders.find((order) => order.id === reviewOrderId)
   const detailsOrder = orders.find((order) => order.id === detailsOrderId)
@@ -248,7 +261,7 @@ export default function Admin() {
 
   const renderStatusCell = (order, status) => (
     <>
-        {order.paymentStatus === 'Paid' ? (
+        {order.paymentStatus === 'Paid' && !['Delivered', 'Cancelled'].includes(status) ? (
           <select value={status} onChange={(event) => updateOrderStatus(order, event.target.value)} aria-label={`Status for ${order.id}`} className={`tapik-status-select w-full ${orderStatusColor(order.status)}`}>
             {status === 'Confirmed payment' && <option>Confirmed payment</option>}
             {FULFILLMENT_STATUSES.map((item) => <option key={item}>{item}</option>)}
@@ -256,7 +269,7 @@ export default function Admin() {
         ) : (
           <div>
             <span className={`tapik-status-badge rounded-md px-2 py-1 text-xs ${orderStatusColor(order.status)}`}>{status}</span>
-            {status !== 'Cancelled' && <button type="button" onClick={() => updateOrderStatus(order, 'Cancelled')} className="mt-2 block text-xs text-rose-200 underline">Cancel order</button>}
+            {!['Cancelled', 'Delivered'].includes(status) && <button type="button" onClick={() => updateOrderStatus(order, 'Cancelled')} className="mt-2 block text-xs text-rose-200 underline">Cancel order</button>}
           </div>
         )}
       </>
@@ -271,7 +284,7 @@ export default function Admin() {
             <tr><th className="py-2 pr-3">Item</th><th className="py-2 pr-3">Stock</th><th className="py-2 pr-3">Warn at</th><th className="py-2 pr-3">Status</th><th className="py-2" /></tr>
           </thead>
           <tbody>
-            {inventoryRows.filter((item) => item.type === type).map((item) => {
+            {visibleInventoryRows.filter((item) => item.type === type).map((item) => {
               const key = itemKey(type, item.id)
               const draft = stockDrafts[key]
               const level = stockLevel(item.row)
@@ -331,7 +344,6 @@ export default function Admin() {
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M3 5h14M3 10h14M3 15h14" /></svg>
               </button>
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.16em] text-yellow-300">TAPik management</p>
                 <h2 className="text-2xl font-black sm:text-3xl">{tab}</h2>
               </div>
             </div>
@@ -485,7 +497,7 @@ export default function Admin() {
               <div className="mb-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_190px_240px]">
                 <input type="search" value={filters.search} onChange={(event) => setFilter('search', event.target.value)} placeholder="Search order, customer, email, or phone" className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-blue-200 sm:col-span-2 lg:col-span-1" />
                 <select value={filters.status} onChange={(event) => setFilter('status', event.target.value)} aria-label="Filter by status" className="rounded-lg border border-white/20 bg-slate-900 px-3 py-2 text-white"><option>{ALL_STATUSES}</option>{STATUSES.map((status) => <option key={status}>{status}</option>)}</select>
-                <DateRangePicker from={filters.from} to={filters.to} onChange={({ from, to }) => setFilters((current) => ({ ...current, from, to }))} />
+                <DateRangePicker from={filters.from} to={filters.to} onChange={({ from, to }) => { setOrdersPage(1); setFilters((current) => ({ ...current, from, to })) }} />
               </div>
               <div className="mb-3 flex flex-wrap items-center gap-2">
                 <button type="button" onClick={() => setFilter('status', filters.status === 'Payment submitted' ? ALL_STATUSES : 'Payment submitted')} className={`rounded-lg border px-3 py-2 text-sm font-bold ${filters.status === 'Payment submitted' ? 'border-yellow-300 bg-yellow-300 text-slate-950' : 'border-white/20 hover:bg-white/10'}`}>To verify ({toVerify})</button>
@@ -506,17 +518,17 @@ export default function Admin() {
                   {chips.map((chip) => (
                     <span key={chip.key} className="inline-flex items-center gap-1 rounded-full bg-white/10 py-1 pl-3 pr-1 text-xs">
                       {chip.label}
-                      <button type="button" onClick={() => setFilters((current) => ({ ...current, ...chip.clear }))} aria-label={`Remove filter: ${chip.label}`} className="rounded-full px-1.5 text-base leading-none hover:bg-white/20">×</button>
+                      <button type="button" onClick={() => { setOrdersPage(1); setFilters((current) => ({ ...current, ...chip.clear })) }} aria-label={`Remove filter: ${chip.label}`} className="rounded-full px-1.5 text-base leading-none hover:bg-white/20">×</button>
                     </span>
                   ))}
-                  <button type="button" onClick={() => setFilters(EMPTY_FILTERS)} className="rounded-lg border border-white/25 px-3 py-1.5 text-xs font-bold hover:bg-white/10">Clear filters</button>
+                  <button type="button" onClick={() => { setOrdersPage(1); setFilters(EMPTY_FILTERS) }} className="rounded-lg border border-white/25 px-3 py-1.5 text-xs font-bold hover:bg-white/10">Clear filters</button>
                 </div>
               )}
               {lastSyncedAt && <p className="mb-3 text-xs text-blue-200">Last synced {lastSyncedAt.toLocaleTimeString()}</p>}
               {filteredOrders.length === 0 ? <p className="py-10 text-center text-blue-200">{orders.length ? 'No orders match these filters.' : 'No orders have been placed yet.'}</p> : (
                 <>
                 <div className="space-y-3 md:hidden">
-                  {filteredOrders.map((order) => {
+                  {visibleOrders.map((order) => {
                     const status = displayOrderStatus(order.status)
                     const itemCount = itemCountOf(order)
                     return (
@@ -541,7 +553,7 @@ export default function Admin() {
                 <div className="hidden overflow-x-auto md:block">
                   <table className="w-full min-w-[860px] text-left text-sm">
                     <thead className="border-b border-white/15 text-xs uppercase text-blue-200"><tr><th className="px-3 py-3">Order</th><th className="px-3 py-3">Date</th><th className="px-3 py-3">Items</th><th className="px-3 py-3">Total</th><th className="px-3 py-3">Payment</th><th className="px-3 py-3">Status</th><th className="px-3 py-3" /></tr></thead>
-                    <tbody>{filteredOrders.map((order) => {
+                    <tbody>{visibleOrders.map((order) => {
                       const status = displayOrderStatus(order.status)
                       const itemCount = itemCountOf(order)
                       return (
@@ -560,6 +572,13 @@ export default function Admin() {
                 </div>
                 </>
               )}
+              {orderPageCount > 1 && (
+                <div className="mt-4 flex items-center justify-center gap-3">
+                  <button type="button" onClick={() => setOrdersPage(Math.max(1, currentOrdersPage - 1))} disabled={currentOrdersPage === 1} className="tapik-pagination-previous rounded-lg border border-white/25 px-3 py-2 text-sm font-bold disabled:opacity-40">Previous</button>
+                  <span className="text-sm">Page {currentOrdersPage} of {orderPageCount}</span>
+                  <button type="button" onClick={() => setOrdersPage(Math.min(orderPageCount, currentOrdersPage + 1))} disabled={currentOrdersPage === orderPageCount} className="tapik-pagination-next rounded-lg border border-white/25 px-3 py-2 text-sm font-bold disabled:opacity-40">Next</button>
+                </div>
+              )}
             </section>
             </div>
           )}
@@ -575,10 +594,21 @@ export default function Admin() {
               )}
               <p className="text-sm text-blue-200">Each keychain uses one shape and one chain. Stock is taken out when a payment is confirmed, and put back if a paid order is cancelled. Customers cannot choose items that are out of stock.</p>
               {inventory && (
+                <>
+                <input type="search" value={inventorySearch} onChange={(event) => { setInventorySearch(event.target.value); setInventoryPage(1) }} placeholder="Search inventory by item or type" aria-label="Search inventory" className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-blue-200" />
                 <div className="grid gap-5 xl:grid-cols-2">
-                  {renderInventoryTable('shape', 'Shapes')}
-                  {renderInventoryTable('chain', 'Chains')}
+                  {visibleInventoryRows.some((item) => item.type === 'shape') && renderInventoryTable('shape', 'Shapes')}
+                  {visibleInventoryRows.some((item) => item.type === 'chain') && renderInventoryTable('chain', 'Chains')}
                 </div>
+                {visibleInventoryRows.length === 0 && <p className="tapik-surface rounded-lg px-4 py-3 text-sm">No inventory items match that search.</p>}
+                {inventoryPageCount > 1 && (
+                  <div className="flex items-center justify-center gap-3">
+                    <button type="button" onClick={() => setInventoryPage((page) => Math.max(1, page - 1))} disabled={inventoryPage === 1} className="tapik-pagination-previous rounded-lg border border-white/25 px-3 py-2 text-sm font-bold disabled:opacity-40">Previous</button>
+                    <span className="text-sm">Page {inventoryPage} of {inventoryPageCount}</span>
+                    <button type="button" onClick={() => setInventoryPage((page) => Math.min(inventoryPageCount, page + 1))} disabled={inventoryPage === inventoryPageCount} className="tapik-pagination-next rounded-lg border border-white/25 px-3 py-2 text-sm font-bold disabled:opacity-40">Next</button>
+                  </div>
+                )}
+                </>
               )}
               {!inventory && api.isConfigured() && !inventoryError && <p className="text-sm text-blue-200">Loading stock…</p>}
             </div>

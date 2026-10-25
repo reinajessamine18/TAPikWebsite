@@ -26,8 +26,7 @@ export default function Account({ onSuccess, onCancel, modal = false, initialMod
     <section className="tapik-surface w-full max-w-md rounded-2xl border border-white/25 p-6 sm:p-8">
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-bold uppercase tracking-[0.18em] text-yellow-300">TAPik account</p>
-          <h1 className="mt-2 text-2xl font-black">{mode === 'login' ? 'Welcome back' : 'Create your account'}</h1>
+          <h1 className="text-2xl font-black">{mode === 'login' ? 'Welcome back' : 'Create your account'}</h1>
           <p className="mt-1 text-sm text-blue-100">Sign in to save your cart and follow your orders.</p>
         </div>
         {onCancel && (

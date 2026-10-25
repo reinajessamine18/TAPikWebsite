@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import { useRef } from 'react'
 import { ACRYLIC_SHAPES, CLASP_ART } from './keychainParts'
 import { clampCrop, imageStyle } from '../lib/designCrop'
 import leftArrow from '../assets/leftArrow.png'
@@ -177,7 +177,7 @@ export default function KeychainPreview({
             <div
               className="flex flex-col items-center"
               style={{
-                filter: 'drop-shadow(6px 10px 10px rgba(25, 67, 83, 0.35))',
+                filter: 'drop-shadow(6px 10px 10px rgba(82, 68, 55, 0.2))',
               }}
             >
               {/* Tab with hole */}
@@ -200,7 +200,7 @@ export default function KeychainPreview({
                   width: '38%',
                   aspectRatio: '1',
                   transform: 'translate(-50%, -50%)',
-                  background: 'rgba(25, 67, 83, 0.35)',
+                  background: 'rgba(82, 68, 55, 0.35)',
                   boxShadow: 'inset 1px 2px 3px rgba(0,0,0,0.35)',
                 }}
               />

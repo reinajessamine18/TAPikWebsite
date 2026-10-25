@@ -24,7 +24,7 @@
   /* Darker blues so white text reaches at least 4.5:1 contrast (WCAG AA). */
   --tapik-blue: #285f7c;
   --tapik-panel: #2f6b8a;
-  --tapik-container-bg: rgba(47, 107, 138, 0.96);
+  --tapik-container-bg: #62a3c0;
   --tapik-yellow: #ffc15b;
   --tapik-white: #fff;
   --tapik-text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -81,6 +81,22 @@ textarea {
 
 button {
   cursor: pointer;
+  font-family: var(--font-display);
+}
+
+.tapik-home {
+  font-family: var(--font-display);
+}
+
+.tapik-pagination-previous {
+  background-color: #fff;
+  color: #000;
+}
+
+.tapik-pagination-next {
+  border-color: #ffd35b;
+  background-color: #ffd35b;
+  color: #000;
 }
 
 button:focus-visible,
@@ -203,7 +219,7 @@ textarea:focus-visible {
   width: 100%;
   min-width: 0;
   overflow: hidden;
-  background: #285f7c;
+  background: #62a3c0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 7px 15px rgba(30, 72, 88, 0.28);
 }
@@ -352,7 +368,7 @@ textarea:focus-visible {
   gap: 16px;
   padding: 10px clamp(16px, 5.5vw, 80px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.14);
-  background: #285f7c;
+  background: #62a3c0;
   color: white;
 }
 
@@ -453,7 +469,7 @@ textarea:focus-visible {
     align-items: stretch;
     gap: 4px;
     padding: 10px clamp(16px, 5.5vw, 80px) 14px;
-    background: #285f7c;
+    background: #62a3c0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.14);
     box-shadow: 0 12px 18px rgba(30, 72, 88, 0.28);
   }
@@ -1432,7 +1448,7 @@ textarea:focus-visible {
   width: min(100%, 94%);
   padding: 14px 28px 14px 36px;
   border-radius: 0 999px 999px 0;
-  background: var(--tapik-panel);
+  background: #62a3c0;
   box-shadow: 0 8px 18px rgba(25, 67, 83, 0.22);
   color: #fff;
   font-size: clamp(22px, 3vw, 32px);

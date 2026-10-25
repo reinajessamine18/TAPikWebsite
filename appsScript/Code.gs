@@ -518,6 +518,9 @@ function updateOrderStatus(data) {
     if (order.OrderStatus === 'Cancelled') {
       return { ok: false, error: 'A cancelled order cannot be reopened.' }
     }
+    if (order.OrderStatus === 'Delivered') {
+      return { ok: false, error: 'A delivered order cannot be changed.' }
+    }
 
     const fields = { OrderStatus: status }
     if (status === 'Cancelled' && order.StockDeducted === 'yes') {
@@ -853,12 +856,12 @@ function createOrderReceipt(receipt) {
       + (quantity * unitPrice).toFixed(2) + '</td></tr>'
   }).join('')
   const html = '<!doctype html><html><head><meta charset="utf-8"><style>'
-    + 'body{font:14px Arial,sans-serif;color:#172554;padding:36px}h1{margin:0;color:#2563eb}'
-    + '.muted{color:#475569}.meta{margin:22px 0;line-height:1.7}'
+    + 'body{font:14px Arial,sans-serif;color:#493f37;padding:36px}h1{margin:0;color:#5799b1}'
+    + '.muted{color:#74665c}.meta{margin:22px 0;line-height:1.7}'
     + 'table{width:100%;border-collapse:collapse;margin-top:20px}'
-    + 'th,td{padding:10px;border-bottom:1px solid #cbd5e1;text-align:left}'
-    + 'th{background:#eff6ff}.totals{margin:20px 0 0 auto;width:260px;line-height:1.8}'
-    + '.notice{margin-top:32px;padding:12px;background:#f1f5f9;font-size:11px}'
+    + 'th,td{padding:10px;border-bottom:1px solid #e2d4c3;text-align:left}'
+    + 'th{background:#fff8ec}.totals{margin:20px 0 0 auto;width:260px;line-height:1.8}'
+    + '.notice{margin-top:32px;padding:12px;background:#fff8ec;font-size:11px}'
     + '</style></head><body><h1>TAPik</h1><p class="muted">Order receipt / acknowledgment</p>'
     + '<div class="meta"><strong>Receipt No.:</strong> ' + escapeHtml(receipt.receiptNumber)
     + '<br><strong>Order ID:</strong> ' + escapeHtml(receipt.orderId)

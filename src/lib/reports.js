@@ -218,14 +218,14 @@ export function buildReportHtml(orders, filters) {
 
   return `<!doctype html><html><head><meta charset="utf-8"><title>TAPik report</title>
 <style>
-  body{font:13px Arial,sans-serif;color:#172554;margin:28px}
-  h1{margin:0;color:#2563eb;font-size:22px}h2{margin:22px 0 6px;font-size:16px}h3{margin:14px 0 4px;font-size:13px}
-  .muted{color:#475569}table{width:100%;border-collapse:collapse;margin-top:6px}
-  th,td{padding:6px 8px;border-bottom:1px solid #cbd5e1;text-align:left;vertical-align:top}
-  th{background:#eff6ff}.num{text-align:right;white-space:nowrap}
+  body{font:13px Arial,sans-serif;color:#493f37;margin:28px}
+  h1{margin:0;color:#5799b1;font-size:22px}h2{margin:22px 0 6px;font-size:16px}h3{margin:14px 0 4px;font-size:13px}
+  .muted{color:#74665c}table{width:100%;border-collapse:collapse;margin-top:6px}
+  th,td{padding:6px 8px;border-bottom:1px solid #e2d4c3;text-align:left;vertical-align:top}
+  th{background:#fff8ec}.num{text-align:right;white-space:nowrap}
   .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:10px}
-  .kpi{border:1px solid #cbd5e1;border-radius:6px;padding:8px 10px}
-  .kpi span{display:block;color:#475569;font-size:11px}.kpi strong{display:block;margin-top:2px;font-size:15px}
+  .kpi{border:1px solid #e2d4c3;border-radius:6px;padding:8px 10px}
+  .kpi span{display:block;color:#74665c;font-size:11px}.kpi strong{display:block;margin-top:2px;font-size:15px}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:24px}
   @media print{body{margin:12mm}tr{page-break-inside:avoid}}
 </style></head><body>
