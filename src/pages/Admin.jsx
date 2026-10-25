@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { loadOrders, saveOrders } from '../lib/storage'
 import { api, downloadReceipt } from '../services/api'
 import { displayOrderStatus, orderStatusColor, paymentLabel, ORDER_STATUSES, FULFILLMENT_STATUSES } from '../lib/orderStatus'
@@ -13,6 +13,13 @@ import LoadingOverlay from '../components/LoadingOverlay'
 import DateRangePicker from '../components/DateRangePicker'
 
 const TABS = ['Dashboard', 'Orders', 'Inventory']
+
+// The admin tab lives in the URL hash (#admin/orders) so a reload stays on the same tab.
+const tabFromHash = () => {
+  const name = window.location.hash.slice(1).split('/')[1]
+  return TABS.find((item) => item.toLowerCase() === name) || 'Dashboard'
+}
+const tabHash = (item) => `admin/${item.toLowerCase()}`
 const STATUSES = ORDER_STATUSES
 
 const STOCK_BADGES = {
@@ -37,7 +44,23 @@ async function fetchAppsScriptOrders() {
 }
 
 export default function Admin() {
-  const [tab, setTab] = useState('Dashboard')
+  const [tab, setTab] = useState(tabFromHash)
+  const tabRef = useRef(tab)
+  useEffect(() => { tabRef.current = tab }, [tab])
+
+  useEffect(() => {
+    // Admins always see this page, so a stray hash such as #home is rewritten to the current tab.
+    const syncTab = () => {
+      if (!window.location.hash.startsWith('#admin')) {
+        window.location.replace(`#${tabHash(tabRef.current)}`)
+        return
+      }
+      setTab(tabFromHash())
+    }
+    syncTab()
+    window.addEventListener('hashchange', syncTab)
+    return () => window.removeEventListener('hashchange', syncTab)
+  }, [])
   const [navOpen, setNavOpen] = useState(() => window.innerWidth >= 1024)
   const [orders, setOrders] = useState(loadOrders)
   const [notice, setNotice] = useState('')
@@ -208,6 +231,7 @@ export default function Admin() {
   }
 
   const goToTab = (item) => {
+    window.location.assign(`#${tabHash(item)}`)
     setTab(item)
     if (window.innerWidth < 1024) setNavOpen(false)
   }

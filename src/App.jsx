@@ -1,22 +1,42 @@
 
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import Navbar from './components/Navbar'
 import Home from './pages/Home'
-import Customize from './pages/Customize'
 import Cart from './pages/Cart'
 import Checkout from './pages/Checkout'
 import Orders from './pages/Orders'
-import Admin from './pages/Admin'
 import Account from './pages/Account'
 import Profile from './pages/Profile'
 import StatusToasts from './components/StatusToasts'
 import { useCustomerOrders } from './lib/useCustomerOrders'
 import { useStatusToasts } from './lib/useStatusToasts'
 import { clearSession, loadCart, loadSession, saveCart, saveSession } from './lib/storage'
-import bg from './assets/TAPikbg.png'
+import bg from './assets/TAPikbg.webp'
+
+// Admin and the customizer are large and not needed by every visitor, so they load on first use.
+const Admin = lazy(() => import('./pages/Admin'))
+const Customize = lazy(() => import('./pages/Customize'))
+
+const PAGES = ['home', 'customize', 'cart', 'checkout', 'orders', 'profile', 'admin', 'account']
+
+const pageFromHash = () => {
+  const name = window.location.hash.slice(1).split('/')[0]
+  return PAGES.includes(name) ? name : 'home'
+}
 
 export default function App() {
-  const [page, setPage] = useState('home')
+  // The page lives in the URL hash so a reload (or the browser's Back button) stays on the same page.
+  const [page, setPageState] = useState(pageFromHash)
+  const setPage = (next) => {
+    window.location.hash = next
+    setPageState(next)
+  }
+
+  useEffect(() => {
+    const syncPage = () => setPageState(pageFromHash())
+    window.addEventListener('hashchange', syncPage)
+    return () => window.removeEventListener('hashchange', syncPage)
+  }, [])
   const [account, setAccount] = useState(loadSession)
   const [cart, setCartState] = useState(loadCart)
   const [accountMode, setAccountMode] = useState('login')
@@ -142,7 +162,9 @@ export default function App() {
       )}
 
       <main className="tapik-main">
-        {isAdmin ? <Admin /> : renderPage()}
+        <Suspense fallback={<p className="p-8 text-center text-white">Loading…</p>}>
+          {isAdmin ? <Admin /> : renderPage()}
+        </Suspense>
       </main>
 
       {showAccountPrompt && (

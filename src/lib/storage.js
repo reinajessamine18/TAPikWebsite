@@ -5,6 +5,27 @@ const SESSION_KEY = 'tapik_session'
 const PRODUCTS_KEY = 'tapik_products'
 const DELIVERY_DETAILS_PREFIX = 'tapik_delivery_details_'
 
+// localStorage is capped at a few MB and throws when full or blocked. Artwork kept with orders is the usual cause,
+// so on a quota error the full-size order images are dropped and the write is tried once more.
+function writeStorage(key, value) {
+  try {
+    localStorage.setItem(key, value)
+    return true
+  } catch {
+    if (key !== ORDERS_KEY) return false
+    try {
+      const slim = JSON.parse(value).map((order) => ({
+        ...order,
+        items: (order.items || []).map((item) => (String(item.image || '').startsWith('data:') ? { ...item, image: '' } : item)),
+      }))
+      localStorage.setItem(key, JSON.stringify(slim))
+      return true
+    } catch {
+      return false
+    }
+  }
+}
+
 const DEMO_ADMIN = {
   id: 'tapik-admin',
   name: 'TAPik Admin',
@@ -22,7 +43,7 @@ export function loadCart() {
 }
 
 export function saveCart(cart) {
-  localStorage.setItem(CART_KEY, JSON.stringify(cart))
+  writeStorage(CART_KEY, JSON.stringify(cart))
 }
 
 export function loadOrders() {
@@ -34,7 +55,7 @@ export function loadOrders() {
 }
 
 export function saveOrders(orders) {
-  localStorage.setItem(ORDERS_KEY, JSON.stringify(orders))
+  writeStorage(ORDERS_KEY, JSON.stringify(orders))
 }
 
 // Replaces stored orders that share an id with the given ones and keeps the rest.
@@ -65,7 +86,7 @@ export function loadUsers() {
     const users = JSON.parse(localStorage.getItem(USERS_KEY)) || []
     if (!users.some((user) => user.role === 'admin')) {
       users.push(DEMO_ADMIN)
-      localStorage.setItem(USERS_KEY, JSON.stringify(users))
+      writeStorage(USERS_KEY, JSON.stringify(users))
     }
     return users
   } catch {
@@ -86,7 +107,7 @@ export function registerUser({ name, email, password }) {
     password,
     role: 'customer',
   }
-  localStorage.setItem(USERS_KEY, JSON.stringify([...users, user]))
+  writeStorage(USERS_KEY, JSON.stringify([...users, user]))
   return user
 }
 
@@ -94,7 +115,7 @@ export function changePassword(userId, currentPassword, newPassword) {
   const users = loadUsers()
   const user = users.find((account) => account.id === userId)
   if (!user || user.password !== currentPassword) throw new Error('Your current password is incorrect.')
-  localStorage.setItem(
+  writeStorage(
     USERS_KEY,
     JSON.stringify(users.map((account) => (account.id === userId ? { ...account, password: newPassword } : account)))
   )
@@ -111,7 +132,7 @@ export function authenticateUser(email, password) {
 
 export function saveSession(user) {
   const session = { id: user.id, name: user.name, email: user.email, role: user.role }
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session))
+  writeStorage(SESSION_KEY, JSON.stringify(session))
 }
 
 export function loadSession() {
@@ -137,7 +158,7 @@ export function loadProducts() {
 }
 
 export function saveProducts(products) {
-  localStorage.setItem(PRODUCTS_KEY, JSON.stringify(products))
+  writeStorage(PRODUCTS_KEY, JSON.stringify(products))
 }
 
 export function loadDeliveryDetails(userId) {
@@ -151,7 +172,7 @@ export function loadDeliveryDetails(userId) {
 
 export function saveDeliveryDetails(userId, details) {
   if (!userId) return
-  localStorage.setItem(`${DELIVERY_DETAILS_PREFIX}${userId}`, JSON.stringify(details))
+  writeStorage(`${DELIVERY_DETAILS_PREFIX}${userId}`, JSON.stringify(details))
 }
 
 export function newId(prefix = 'id') {

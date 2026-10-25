@@ -457,6 +457,7 @@ function createOrder(data) {
       receiptURL: receiptURL
     }
   } finally {
+    clearOrderCache()
     lock.releaseLock()
   }
 }
@@ -533,6 +534,7 @@ function updateOrderStatus(data) {
     syncShipmentStatus(data.orderId, status)
     return { ok: true }
   } finally {
+    clearOrderCache()
     lock.releaseLock()
   }
 }
@@ -584,6 +586,7 @@ function submitPaymentProof(data) {
     syncShipmentStatus(orderId, 'Payment submitted')
     return { ok: true, status: 'Payment submitted', paymentStatus: 'Submitted' }
   } finally {
+    clearOrderCache()
     lock.releaseLock()
   }
 }
@@ -653,6 +656,7 @@ function verifyPayment(data) {
       stockShortages: stockShortages
     }
   } finally {
+    clearOrderCache()
     lock.releaseLock()
   }
 }
@@ -700,16 +704,67 @@ function getCustomerOrders(data) {
   return { ok: true, data: buildOrders(customerId) }
 }
 
+// Order lists are cached briefly because the storefront and admin page poll them. Every write bumps the
+// cache version (clearOrderCache), so a payment decision or status change is never served stale.
+const ORDER_CACHE_SECONDS = 10
+
+function orderCacheKey(customerId) {
+  const cache = CacheService.getScriptCache()
+  let version = cache.get('ordersVersion')
+  if (!version) {
+    version = String(Date.now())
+    cache.put('ordersVersion', version, 21600)
+  }
+  return 'orders_' + version + '_' + customerId
+}
+
+function clearOrderCache() {
+  CacheService.getScriptCache().put('ordersVersion', String(Date.now()), 21600)
+}
+
 // Builds the order list the storefront uses. Pass a customer ID to limit it to one customer.
 function buildOrders(customerId) {
+  const cache = CacheService.getScriptCache()
+  const cacheKey = orderCacheKey(customerId)
+  const cached = cache.get(cacheKey)
+  if (cached) return JSON.parse(cached)
+
+  const orders = buildOrdersUncached(customerId)
+  try {
+    cache.put(cacheKey, JSON.stringify(orders), ORDER_CACHE_SECONDS)
+  } catch (error) {
+    // Results over the cache's 100 KB limit are simply not cached.
+  }
+  return orders
+}
+
+function groupBy(rows, keyHeader) {
+  const groups = {}
+  rows.forEach((row) => {
+    const key = String(row[keyHeader] || '')
+    ;(groups[key] = groups[key] || []).push(row)
+  })
+  return groups
+}
+
+function buildOrdersUncached(customerId) {
   ensureOrderHeaders()
   const allOrders = sheetToObjects(getSheet('Orders'))
   const orders = customerId
     ? allOrders.filter((row) => String(row.CustomerID || '') === customerId)
     : allOrders
-  const orderItems = sheetToObjects(getSheet('OrderItems'))
-  const customers = sheetToObjects(getSheet('Customers'))
-  const shipments = sheetToObjects(getSheet('Shipments'))
+  // Index the other sheets once so each order is a lookup, not a scan.
+  const itemsByOrder = groupBy(sheetToObjects(getSheet('OrderItems')), 'OrderID')
+  const customersById = {}
+  sheetToObjects(getSheet('Customers')).forEach((entry) => {
+    const key = String(entry.CustomerID || '')
+    if (!(key in customersById)) customersById[key] = entry
+  })
+  const shipmentsByOrder = {}
+  sheetToObjects(getSheet('Shipments')).forEach((entry) => {
+    const key = String(entry.OrderID || '')
+    if (!(key in shipmentsByOrder)) shipmentsByOrder[key] = entry
+  })
 
   // The same proof image on more than one order is a common sign of a faked or reused proof.
   const proofCounts = {}
@@ -720,10 +775,10 @@ function buildOrders(customerId) {
 
   return orders.map((row) => {
     const orderId = String(row.OrderID || '')
-    const customer = customers.find((entry) => String(entry.CustomerID || '') === String(row.CustomerID || '')) || {}
-    const shipment = shipments.find((entry) => String(entry.OrderID || '') === orderId) || {}
+    const customer = customersById[String(row.CustomerID || '')] || {}
+    const shipment = shipmentsByOrder[orderId] || {}
     const notes = parseOrderNotes(row.Notes)
-    const rows = orderItems.filter((entry) => String(entry.OrderID || '') === orderId)
+    const rows = itemsByOrder[orderId] || []
     const proofHash = String(row.ProofHash || '')
 
     return {

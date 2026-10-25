@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import KeychainPreview from '../components/KeychainPreview'
 import DesignAdjust from '../components/DesignAdjust'
 import { ACRYLIC_SHAPES } from '../components/keychainParts'
