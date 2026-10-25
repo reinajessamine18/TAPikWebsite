@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { loadOrders, mergeRemoteOrders } from './storage'
 import { api } from '../services/api'
+import { onChange } from './liveSync'
 
-const POLL_MS = 15000
+const POLL_MS = 5000
 
 const mine = (orders, accountId) =>
   orders
@@ -10,7 +11,7 @@ const mine = (orders, accountId) =>
     .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
 
 // A customer's orders, newest first. They are saved in this browser, and refreshed from the order database
-// every 15 seconds and whenever the customer returns to the tab, so payment decisions and fulfillment updates
+// every 5 seconds, whenever the customer returns to the tab, and as soon as another tab reports a change, so payment decisions and fulfillment updates
 // show up. Pass null when nobody (or an admin) is signed in. Call reload() after changing a stored order yourself.
 export function useCustomerOrders(accountId) {
   const [version, setVersion] = useState(0)
@@ -46,7 +47,18 @@ export function useCustomerOrders(accountId) {
 
   useEffect(() => {
     active.current = true
-    if (!accountId || !api.isConfigured()) return undefined
+    if (!accountId) return undefined
+    // Another tab changed an order: re-read this browser's copy now, then ask the database when there is one.
+    const stopListening = onChange(() => {
+      setVersion((current) => current + 1)
+      refresh()
+    })
+    if (!api.isConfigured()) {
+      return () => {
+        active.current = false
+        stopListening()
+      }
+    }
 
     const refreshIfVisible = () => {
       if (document.visibilityState === 'visible') refresh()
@@ -57,6 +69,7 @@ export function useCustomerOrders(accountId) {
     document.addEventListener('visibilitychange', refreshIfVisible)
     return () => {
       active.current = false
+      stopListening()
       window.clearInterval(intervalId)
       window.removeEventListener('focus', refreshIfVisible)
       document.removeEventListener('visibilitychange', refreshIfVisible)

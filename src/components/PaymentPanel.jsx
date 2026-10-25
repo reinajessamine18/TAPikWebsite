@@ -3,6 +3,7 @@ import DemoQr from './DemoQr'
 import LoadingOverlay from './LoadingOverlay'
 import { api } from '../services/api'
 import { resizeImageToDataUrl } from '../lib/image'
+import { notifyChange } from '../lib/liveSync'
 
 // Shows the demo payment QR and collects the proof of payment.
 export default function PaymentPanel({ order, account, onUpdated }) {
@@ -71,6 +72,7 @@ export default function PaymentPanel({ order, account, onUpdated }) {
         // Without the order database the proof is kept in this browser only.
         ...(configured ? {} : { proofImage: proof, hasProof: true }),
       })
+      notifyChange()
     } catch (submitError) {
       setError(submitError.message)
     } finally {

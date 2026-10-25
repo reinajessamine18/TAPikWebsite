@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../services/api'
+import { onChange } from './liveSync'
 
 export const itemKey = (type, id) => `${type}:${id}`
 
@@ -21,7 +22,7 @@ async function fetchInventory() {
 
 // Loads stock levels from the order database and refreshes them on an interval.
 // inventory stays null until loaded, or when no database is connected; callers treat null as "everything available".
-export function useInventory(refreshMs = 60000) {
+export function useInventory(refreshMs = 5000) {
   const [inventory, setInventory] = useState(null)
   const [error, setError] = useState('')
 
@@ -50,9 +51,13 @@ export function useInventory(refreshMs = 60000) {
       }
     }
     load()
-    const intervalId = window.setInterval(load, refreshMs)
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') load()
+    }, refreshMs)
+    const stopListening = onChange(load)
     return () => {
       active = false
+      stopListening()
       window.clearInterval(intervalId)
     }
   }, [refreshMs])

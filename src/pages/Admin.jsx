@@ -6,6 +6,7 @@ import { SHAPES, CHAINS, METRO_MANILA_CITIES } from '../lib/pricing'
 import { getBarangays } from '../data/metroManila'
 import { ALL_STATUSES, EMPTY_FILTERS, activeFilterCount, filterChips, filterOrders, orderKpis, topItems } from '../lib/reports'
 import { itemKey, stockLevel, useInventory } from '../lib/inventory'
+import { notifyChange, onChange } from '../lib/liveSync'
 import PaymentReview from '../components/PaymentReview'
 import OrderDetails from '../components/OrderDetails'
 import ReportDialog from '../components/ReportDialog'
@@ -79,7 +80,7 @@ export default function Admin() {
   const [detailsOrderId, setDetailsOrderId] = useState(null)
   const [stockDrafts, setStockDrafts] = useState({})
   const [savingStockKey, setSavingStockKey] = useState('')
-  const { inventory, error: inventoryError, refresh: refreshInventory } = useInventory(30000)
+  const { inventory, error: inventoryError, refresh: refreshInventory } = useInventory(5000)
 
   const refreshAdminData = async (announce = false) => {
     if (!api.isConfigured()) {
@@ -102,10 +103,13 @@ export default function Admin() {
   }
 
   useEffect(() => {
-    if (!api.isConfigured()) return undefined
-
     let isActive = true
+    // Local mode (no order database): other tabs write to this browser's storage, so re-read it.
     const sync = async () => {
+      if (!api.isConfigured()) {
+        setOrders(loadOrders())
+        return
+      }
       try {
         const remoteOrders = await fetchAppsScriptOrders()
         if (!isActive) return
@@ -121,9 +125,15 @@ export default function Admin() {
     }
 
     sync()
-    const intervalId = window.setInterval(sync, 30000)
+    const intervalId = window.setInterval(() => {
+      if (document.visibilityState === 'visible') sync()
+    }, 5000)
+    const stopListening = onChange(sync)
+    window.addEventListener('focus', sync)
     return () => {
       isActive = false
+      stopListening()
+      window.removeEventListener('focus', sync)
       window.clearInterval(intervalId)
     }
   }, [])
@@ -147,12 +157,15 @@ export default function Admin() {
         const result = await api.updateOrderStatus({ orderId: order.id, status })
         if (!result.ok) throw new Error(result.error || 'Apps Script rejected the status update.')
         setNotice(`Order ${order.id} updated in Apps Script.`)
+        notifyChange()
         if (status === 'Cancelled') refreshInventory()
       } catch (error) {
         setOrders(orders)
         saveOrders(orders)
         setNotice(`Order status was not saved to Apps Script: ${error.message}`)
       }
+    } else {
+      notifyChange()
     }
   }
 
@@ -180,6 +193,7 @@ export default function Admin() {
     setOrders(next)
     saveOrders(next)
     setReviewOrderId(null)
+    notifyChange()
     if (confirmed) refreshInventory()
     setNotice(
       confirmed
@@ -209,6 +223,7 @@ export default function Admin() {
       const result = await api.updateInventory({ type, id, stock: Number(stock), threshold: Number(threshold) })
       if (!result.ok) throw new Error(result.error || 'Apps Script rejected the stock update.')
       await refreshInventory()
+      notifyChange()
       setStockDrafts((current) => {
         const rest = { ...current }
         delete rest[key]
