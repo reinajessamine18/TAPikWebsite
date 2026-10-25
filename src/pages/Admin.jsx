@@ -44,7 +44,8 @@ export default function Admin() {
   const [filters, setFilters] = useState(EMPTY_FILTERS)
   const [ordersPage, setOrdersPage] = useState(1)
   const [inventorySearch, setInventorySearch] = useState('')
-  const [inventoryPage, setInventoryPage] = useState(1)
+  const [shapeInventoryPage, setShapeInventoryPage] = useState(1)
+  const [chainInventoryPage, setChainInventoryPage] = useState(1)
   const [showReport, setShowReport] = useState(false)
   const [manualRefreshing, setManualRefreshing] = useState(false)
   const [showMoreFilters, setShowMoreFilters] = useState(false)
@@ -239,11 +240,12 @@ export default function Admin() {
     ...SHAPES.map((item) => ({ type: 'shape', ...item })),
     ...CHAINS.map((item) => ({ type: 'chain', ...item })),
   ].map((item) => ({ ...item, row: inventory?.[itemKey(item.type, item.id)] }))
-  const matchingInventoryRows = inventoryRows.filter((item) =>
-    `${item.label} ${item.type}`.toLowerCase().includes(inventorySearch.trim().toLowerCase())
+  const matchingShapeRows = inventoryRows.filter((item) =>
+    item.type === 'shape' && `${item.label} shape`.toLowerCase().includes(inventorySearch.trim().toLowerCase())
   )
-  const inventoryPageCount = Math.ceil(matchingInventoryRows.length / 10)
-  const visibleInventoryRows = matchingInventoryRows.slice((inventoryPage - 1) * 10, inventoryPage * 10)
+  const matchingChainRows = inventoryRows.filter((item) =>
+    item.type === 'chain' && `${item.label} chain`.toLowerCase().includes(inventorySearch.trim().toLowerCase())
+  )
   const lowStockItems = inventoryRows.filter((item) => item.row && stockLevel(item.row) !== 'ok')
   const reviewOrder = orders.find((order) => order.id === reviewOrderId)
   const detailsOrder = orders.find((order) => order.id === detailsOrderId)
@@ -275,7 +277,13 @@ export default function Admin() {
       </>
   )
 
-  const renderInventoryTable = (type, title) => (
+  const renderInventoryTable = (title, rows, page, setPage) => {
+    const pageSize = 6
+    const pageCount = Math.ceil(rows.length / pageSize)
+    const currentPage = Math.min(page, Math.max(1, pageCount))
+    const pageRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize)
+
+    return (
     <section className="tapik-surface rounded-xl border border-white/25 p-4 sm:p-5">
       <h3 className="mb-3 text-lg font-black">{title}</h3>
       <div className="overflow-x-auto">
@@ -284,8 +292,8 @@ export default function Admin() {
             <tr><th className="py-2 pr-3">Item</th><th className="py-2 pr-3">Stock</th><th className="py-2 pr-3">Warn at</th><th className="py-2 pr-3">Status</th><th className="py-2" /></tr>
           </thead>
           <tbody>
-            {visibleInventoryRows.filter((item) => item.type === type).map((item) => {
-              const key = itemKey(type, item.id)
+            {pageRows.map((item) => {
+              const key = itemKey(item.type, item.id)
               const draft = stockDrafts[key]
               const level = stockLevel(item.row)
               const badge = STOCK_BADGES[level]
@@ -300,7 +308,7 @@ export default function Admin() {
                   </td>
                   <td className="py-2 pr-3"><span className={`tapik-status-badge rounded-md px-2 py-1 text-xs ${badge.className}`}>{badge.label}</span></td>
                   <td className="py-2 text-right">
-                    <button type="button" disabled={!draft || savingStockKey === key} onClick={() => saveStock(type, item.id)} className="rounded-lg bg-yellow-300 px-3 py-1.5 text-xs font-bold text-slate-950 disabled:opacity-40">
+                    <button type="button" disabled={!draft || savingStockKey === key} onClick={() => saveStock(item.type, item.id)} className="rounded-lg bg-yellow-300 px-3 py-1.5 text-xs font-bold text-slate-950 disabled:opacity-40">
                       {savingStockKey === key ? 'Saving…' : 'Save'}
                     </button>
                   </td>
@@ -310,8 +318,14 @@ export default function Admin() {
           </tbody>
         </table>
       </div>
+      <div className="mt-4 flex items-center justify-center gap-3">
+        <button type="button" onClick={() => setPage(Math.max(1, currentPage - 1))} disabled={currentPage === 1} className="tapik-pagination-previous rounded-lg border border-white/25 px-3 py-2 text-sm font-bold disabled:opacity-40">Previous</button>
+        <span className="text-sm">Page {currentPage} of {pageCount}</span>
+        <button type="button" onClick={() => setPage(Math.min(pageCount, currentPage + 1))} disabled={currentPage === pageCount} className="tapik-pagination-next rounded-lg border border-white/25 px-3 py-2 text-sm font-bold disabled:opacity-40">Next</button>
+      </div>
     </section>
-  )
+    )
+  }
 
   return (
     <section className="tapik-admin min-h-[calc(100vh-76px)] text-white">
@@ -595,19 +609,12 @@ export default function Admin() {
               <p className="text-sm text-blue-200">Each keychain uses one shape and one chain. Stock is taken out when a payment is confirmed, and put back if a paid order is cancelled. Customers cannot choose items that are out of stock.</p>
               {inventory && (
                 <>
-                <input type="search" value={inventorySearch} onChange={(event) => { setInventorySearch(event.target.value); setInventoryPage(1) }} placeholder="Search inventory by item or type" aria-label="Search inventory" className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-blue-200" />
+                <input type="search" value={inventorySearch} onChange={(event) => { setInventorySearch(event.target.value); setShapeInventoryPage(1); setChainInventoryPage(1) }} placeholder="Search inventory by item or type" aria-label="Search inventory" className="w-full rounded-lg border border-white/20 bg-white/10 px-3 py-2 text-white placeholder:text-blue-200" />
                 <div className="grid gap-5 xl:grid-cols-2">
-                  {visibleInventoryRows.some((item) => item.type === 'shape') && renderInventoryTable('shape', 'Shapes')}
-                  {visibleInventoryRows.some((item) => item.type === 'chain') && renderInventoryTable('chain', 'Chains')}
+                  {matchingShapeRows.length > 0 && renderInventoryTable('Shapes', matchingShapeRows, shapeInventoryPage, setShapeInventoryPage)}
+                  {matchingChainRows.length > 0 && renderInventoryTable('Chains', matchingChainRows, chainInventoryPage, setChainInventoryPage)}
                 </div>
-                {visibleInventoryRows.length === 0 && <p className="tapik-surface rounded-lg px-4 py-3 text-sm">No inventory items match that search.</p>}
-                {inventoryPageCount > 1 && (
-                  <div className="flex items-center justify-center gap-3">
-                    <button type="button" onClick={() => setInventoryPage((page) => Math.max(1, page - 1))} disabled={inventoryPage === 1} className="tapik-pagination-previous rounded-lg border border-white/25 px-3 py-2 text-sm font-bold disabled:opacity-40">Previous</button>
-                    <span className="text-sm">Page {inventoryPage} of {inventoryPageCount}</span>
-                    <button type="button" onClick={() => setInventoryPage((page) => Math.min(inventoryPageCount, page + 1))} disabled={inventoryPage === inventoryPageCount} className="tapik-pagination-next rounded-lg border border-white/25 px-3 py-2 text-sm font-bold disabled:opacity-40">Next</button>
-                  </div>
-                )}
+                {matchingShapeRows.length === 0 && matchingChainRows.length === 0 && <p className="tapik-surface rounded-lg px-4 py-3 text-sm">No inventory items match that search.</p>}
                 </>
               )}
               {!inventory && api.isConfigured() && !inventoryError && <p className="text-sm text-blue-200">Loading stock…</p>}

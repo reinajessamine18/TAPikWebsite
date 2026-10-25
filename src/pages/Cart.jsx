@@ -49,7 +49,7 @@ export default function Cart({ cart, setCart, setPage }) {
           </p>
           <button
             type="button"
-            className="tapik-primary-button"
+            className="tapik-primary-button tapik-empty-cart-button"
             onClick={() => setPage('customize')}
           >
             Start Customizing

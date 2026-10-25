@@ -872,6 +872,15 @@ textarea:focus-visible {
   transform: translateY(-1px);
 }
 
+.tapik-empty-cart-button {
+  background: #ffd35b;
+  color: #000;
+}
+
+.tapik-empty-cart-button:hover {
+  background: #ffe18c;
+}
+
 .tapik-checkout-button {
   width: 100%;
 }
@@ -1005,7 +1014,7 @@ textarea:focus-visible {
   padding: 25px;
   border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 24px;
-  background: #285f7c;
+  background: #62a3c0;
   box-shadow: 0 12px 28px rgba(25, 67, 83, 0.30);
   color: #fff;
 }
